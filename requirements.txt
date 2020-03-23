@@ -1,0 +1,10 @@
+flask
+opencv-python-headless
+torch
+onnxruntime
+gevent
+pyzbar
+pytest
+pytest-flask
+ujson
+imageio
