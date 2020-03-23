@@ -20,6 +20,37 @@ class ComputerVision:
 
         @self.blueprint.route('/detect_codes', methods=['POST'])
         def detect_codes():
+            """
+            Get QR or barcodes in an image
+            ---
+            description: Get QR codes and barcodes in an image
+            requestBody:
+                content:
+                    image/png:
+                      schema:
+                        type: string
+                        format: binary
+            responses:
+             '200':
+                dsecription: array of detections
+                content:
+                    application/json:
+                        schema:
+                            type: array
+                            items: 
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                    top:
+                                        type: number
+                                    left:
+                                        type: number
+                                    bottom:
+                                        type: number
+                                    right:
+                                        type: number
+            """
             image = np.asarray(imageio.imread(request.data))
             codes = []
             decodedObjects = pyzbar.decode(image)
@@ -39,6 +70,26 @@ class ComputerVision:
 
         @self.blueprint.route('/align_image', methods=['POST'])
         def align_image():
+            """
+            Given a jpeg image with that containes the  QR code, use that QR code to align the image
+            ---
+            description: Gets a jpeg and returns a jpeg
+            requestBody:
+                content:
+                    image/png:
+                      schema:
+                        type: string
+                        format: binary
+            responses:
+              '200':
+                descritption: jpeg image
+                content:
+                    image/png:
+                      schema:
+                        type: string
+                        format: binary
+
+            """
             if os.environ.get('CVMONITOR_SKIP_ALIGN')=='TRUE':
                 return request.data
             image = np.asarray(imageio.imread(request.data))

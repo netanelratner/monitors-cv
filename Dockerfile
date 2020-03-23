@@ -1,4 +1,4 @@
-FROM python:3.6.10-buster
+FROM python:3.7-buster
 RUN apt-get update && apt-get install -yyq  libzbar0 && apt-get clean
 ADD requirements.txt /opt/app/requirements.txt
 RUN pip install -r /opt/app/requirements.txt
