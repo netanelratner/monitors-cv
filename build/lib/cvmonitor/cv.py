@@ -1,9 +1,11 @@
-from flask import Flask, Blueprint, request, abort
+from flask import Flask, Blueprint, request, abort, Response
 import cv2
 import imageio
 import ujson as json
 import numpy as np
 from pyzbar import pyzbar
+import io
+import os
 
 
 class ComputerVision:
@@ -33,4 +35,18 @@ class ComputerVision:
                     })
                 except:
                     abort(500,"Error decoding bardcode data.")
-            return json.dumps(codes)
+            return json.dumps(codes), 200, {'content-type':'application/json'}
+
+        @self.blueprint.route('/align_image', methods=['POST'])
+        def align_image():
+            if os.environ.get('MONITOR_CV_SKIP_ALIGN')=='TRUE':
+                return request.data
+            image = np.asarray(imageio.imread(request.data))
+            # Detect and decode the qrcode
+            data,bbox,rectifiedImage = self.qrDecoder.detectAndDecode(image)
+            b = io.BytesIO()
+            imageio.imwrite(b,rectifiedImage, format='jpeg')
+            b.seek(0)
+            return b.read(), 200, {'content-type':'image/jpeg'}
+
+

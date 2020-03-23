@@ -1,5 +1,7 @@
 from flask import url_for
 import cv2
+import numpy as np
+import imageio
 import os
 
 def test_ping(client):
@@ -15,4 +17,13 @@ def test_codes(client):
     image = open(os.path.dirname(__file__)+'/data/barcode.png','rb').read()
     assert len(image)>0
     res = client.post(url_for('cv.detect_codes'),data=image,headers={'content-type':'application/png'})
-    import pdb; pdb.set_trace()
+    assert res.json[0]['data'] == 'Foramenifera'
+
+def test_align(client):
+    image = open(os.path.dirname(__file__)+'/data/qrcode.png','rb').read()
+    assert len(image)>0
+    res = client.post(url_for('cv.align_image'),data=image,headers={'content-type':'application/png'})
+    res_image = np.asarray(imageio.imread(res.data))
+    assert res_image.shape[0]>0
+
+
