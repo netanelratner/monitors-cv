@@ -4,7 +4,7 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -mvenv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ADD requirements.txt /opt/app/requirements.txt
-RUN bash -c pip install -r /opt/app/requirements.txt --no-cache-dir
+RUN pip install -r /opt/app/requirements.txt --no-cache-dir
 ADD . /opt/app
 RUN pip install -e /opt/app --no-cache-dir
 RUN pytest /opt/app
