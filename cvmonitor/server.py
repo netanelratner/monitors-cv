@@ -1,3 +1,6 @@
+import gevent
+from gevent.monkey import patch_all;
+patch_all()
 import ujson as json
 import cv2
 from flask import Flask, Blueprint, request

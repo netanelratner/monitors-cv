@@ -4,3 +4,4 @@ venv/
 **/*.egg-info/
 .vscode/
 __pycache__/**
+id_rsa*

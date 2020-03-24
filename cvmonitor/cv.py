@@ -7,6 +7,7 @@ from pyzbar import pyzbar
 import io
 import os
 import base64
+import time
 from .ocr import monitor_ocr
 
 class ComputerVision:
@@ -104,7 +105,7 @@ class ComputerVision:
 
         @self.blueprint.route('/run_ocr', methods=['POST'])
         def run_ocr():
-            
+            st = time.time()
             if not self.model_ocr:
                 abort(500,'NN Model not found, could not run ocr')
             data = request.json
@@ -117,4 +118,6 @@ class ComputerVision:
             
             for s,t in zip(segments,texts):
                 results.append({'segment_name': s['name'], 'value':t})
+            e = time.time()
+            print(f'duration {e-st}')
             return json.dumps(results), 200, {'content-type':'application/json'}
