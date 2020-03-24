@@ -27,3 +27,12 @@ def test_align(client):
     assert res_image.shape[0]>0
 
 
+def test_align_whole_image(client):
+    image = open(os.path.dirname(__file__)+'/data/barcode_monitor.jpg','rb').read()
+    assert len(image)>0
+    res = client.post(url_for('cv.align_image'),data=image,headers={'content-type':'application/png'})
+    res_image = np.asarray(imageio.imread(res.data))
+    assert res_image.shape[0]>0
+
+
+

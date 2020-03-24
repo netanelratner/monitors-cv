@@ -9,3 +9,5 @@ pytest-flask
 ujson
 imageio
 flasgger
+tesseract-ocr
+pillow-simd

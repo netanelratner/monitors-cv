@@ -95,6 +95,7 @@ class ComputerVision:
             image = np.asarray(imageio.imread(request.data))
             # Detect and decode the qrcode
             data,bbox,rectifiedImage = self.qrDecoder.detectAndDecode(image)
+            import pdb; pdb.set_trace()
             b = io.BytesIO()
             imageio.imwrite(b,rectifiedImage, format='jpeg')
             b.seek(0)
