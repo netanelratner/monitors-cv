@@ -109,7 +109,7 @@ class ComputerVision:
                 abort(500,'NN Model not found, could not run ocr')
             data = request.json
             assert 'image' in data
-            image = np.asarray(imageio.imread(base64.decodestring(data['image'].encode())))
+            image = np.asarray(imageio.imread(base64.decodebytes(data['image'].encode())))
             segments = data['segments']
             bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
             texts = monitor_ocr.detect(self.model_ocr, bbox_list, image)
