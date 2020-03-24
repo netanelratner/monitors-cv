@@ -6,13 +6,15 @@ import numpy as np
 from pyzbar import pyzbar
 import io
 import os
-
+import base64
+from .ocr import monitor_ocr
 
 class ComputerVision:
 
     def __init__(self):
         self.blueprint = Blueprint('cv', __name__)
         self.qrDecoder = cv2.QRCodeDetector()
+        self.model_ocr = monitor_ocr.build_model()
 
         @self.blueprint.route('/ping/')
         def ping():
@@ -100,4 +102,19 @@ class ComputerVision:
             b.seek(0)
             return b.read(), 200, {'content-type':'image/jpeg','X-MONITOR-ID': data}
 
-
+        @self.blueprint.route('/run_ocr', methods=['POST'])
+        def run_ocr():
+            
+            if not self.model_ocr:
+                abort(500,'NN Model not found, could not run ocr')
+            data = request.json
+            assert 'image' in data
+            image = np.asarray(imageio.imread(base64.decodestring(data['image'].encode())))
+            segments = data['segments']
+            bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
+            texts = monitor_ocr.detect(self.model_ocr, bbox_list, image)
+            results = []
+            
+            for s,t in zip(segments,texts):
+                results.append({'segment_name': s['name'], 'value':t})
+            return json.dumps(results), 200, {'content-type':'application/json'}
