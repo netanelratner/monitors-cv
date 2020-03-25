@@ -7,6 +7,7 @@ from flask import Flask, Blueprint, request
 from gevent.pywsgi import WSGIServer
 import gevent
 import os
+from .ocr.monitor_ocr import get_model
 from .cv import ComputerVision
 from flasgger import Swagger
 
@@ -37,6 +38,8 @@ class Server:
 def main():
     server = Server()
     host=os.environ.get('CVMONITOR_HOST','0.0.0.0')
-    port=int(os.environ.get('CVMONITOR_PORT','8088'))
+    port=int(os.environ.get('CVMONITOR_PORT','8089'))
+    print('checking if model exists:')
+    get_model()
     print(f'serving on http://{host}:{port}/apidocs')
     WSGIServer((host, port), server.app).serve_forever()

@@ -22,3 +22,5 @@ scipy
 six
 torchvision==0.5.0
 qrcode
+requests
+tqdm

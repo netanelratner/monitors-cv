@@ -8,6 +8,10 @@ setup(
     #package_dir={"": "cvmonitor"},
     install_requires=open("requirements.txt").readlines(),
     entry_points = {
-        'console_scripts': ['cvmonitor=cvmonitor.server:main'],
+        'console_scripts': 
+            [
+                'cvmonitor=cvmonitor.server:main',
+                'cvmonitor-get-model=cvmonitor.ocr.monitor_ocr:get_model'
+            ],
     }
 )
