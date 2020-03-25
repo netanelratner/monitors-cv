@@ -38,7 +38,7 @@ class Server:
 def main():
     server = Server()
     host=os.environ.get('CVMONITOR_HOST','0.0.0.0')
-    port=int(os.environ.get('CVMONITOR_PORT','8089'))
+    port=int(os.environ.get('CVMONITOR_PORT','8088'))
     print('checking if model exists:')
     get_model()
     print(f'serving on http://{host}:{port}/apidocs')
