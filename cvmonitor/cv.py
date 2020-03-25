@@ -186,7 +186,7 @@ class ComputerVision:
             detected_qrcode = find_qrcode(image, qrprefix)
             data = detected_qrcode.data.decode()
             if detected_qrcode is None:
-                abort(500, "Could not find the qr code to aling the image")
+                abort(400, "Could not find the qr code to aling the image")
 
             aligned_image = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
             b = io.BytesIO()
