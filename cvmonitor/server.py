@@ -36,7 +36,7 @@ class Server:
 
 def main():
     server = Server()
-    host=os.environ.get('CVMONITOR_HOST','127.0.0.1')
+    host=os.environ.get('CVMONITOR_HOST','0.0.0.0')
     port=int(os.environ.get('CVMONITOR_PORT','8088'))
     print(f'serving on http://{host}:{port}/apidocs')
     WSGIServer((host, port), server.app).serve_forever()
