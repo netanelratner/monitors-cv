@@ -184,9 +184,9 @@ class ComputerVision:
             qrsize = int(os.environ.get('CVMONITOR_QR_TARGET_SIZE',100))
             boundery = float(os.environ.get('CVMONITOR_QR_BOUNDERY_SIZE',20))
             detected_qrcode = find_qrcode(image, qrprefix)
-            data = detected_qrcode.data.decode()
             if detected_qrcode is None:
                 abort(400, "Could not find the qr code to aling the image")
+            data = detected_qrcode.data.decode()
 
             aligned_image = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
             b = io.BytesIO()
