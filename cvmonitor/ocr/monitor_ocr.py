@@ -264,6 +264,7 @@ def get_model():
     path = os.path.dirname(__file__) +'/PreTrained/' 
     url = 'https://cvmonitormodelstorage.blob.core.windows.net/cvmodels/TPS-ResNet-BiLSTM-Attn.pth'
     def download_model():
+        os.makedirs(path,exist_ok=True)
         with open(path + filename,'wb') as f:
             result = requests.get(url, stream=True)
             # Total size in bytes.
