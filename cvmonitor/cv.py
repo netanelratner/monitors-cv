@@ -197,6 +197,8 @@ class ComputerVision:
                 return json.dumps([]), 200, {'content-type':'application/json'}
             segments = data['segments']
             bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
+            if len(bbox_list) == 0:
+                return json.dumps([]), 200, {'content-type':'application/json'}
             texts = monitor_ocr.detect(self.model_ocr, bbox_list, image)
             results = []
             for s,t in zip(segments,texts):
