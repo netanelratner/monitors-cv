@@ -59,20 +59,34 @@ def read_codes(image):
         except:
             continue
     return codes
+def order_points(pts):
+    """
+    order such that [top-left,top-right,bottom-right,bottom-left]
+    """
+    rect = np.zeros((4, 2), dtype = "float32")
+    s = pts.sum(axis = 1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    diff = np.diff(pts, axis = 1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    return rect
+
 
 def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     """
     Aling image by qrcode, normalize by qrcode size
     """
-    tgt_pts = np.array([[boundery,qrsize],[qrsize,qrsize],[qrsize,boundery],[boundery,boundery]],np.float32)
-    shape_pts = np.array([[0.0,image.shape[0]],[image.shape[1],image.shape[0]],[image.shape[1],0],[0,0]],np.float32)
-    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon], np.float32)
+    tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
+    shape_pts = np.array([[0,0],[image.shape[1],0],[image.shape[1],image.shape[0]],[0.0,image.shape[0]]],np.float32)
+    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
+    src_pts=order_points(src_pts)
     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
     res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
     for r in range(4):
         res[:,r]/=res[-1,r]
-    width = int(np.ceil(max(res[0,:]))) + int(np.floor(min(res[0,:])))
-    height = int(np.ceil(max(res[1,:]))) + int(np.floor(min(res[1,:])))
+    width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res[0,:])))
+    height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
     warped = cv2.warpPerspective(image, M,(width,height))
     return warped
 

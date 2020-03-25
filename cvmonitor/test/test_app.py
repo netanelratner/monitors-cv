@@ -51,7 +51,6 @@ def test_ocr(client):
     res = client.post(url_for('cv.run_ocr'),json=data)
     assert res.json == [{'segment_name': '0', 'value': '52'}, {'segment_name': '1', 'value': '15'}, {'segment_name': '2', 'value': '93'}, {'segment_name': '3', 'value': '115'}, {'segment_name': '4', 'value': '45'}]
 
-
 def test_pdf_generate():
     cv.generate_pdf('test.pdf','something')
 
@@ -60,8 +59,14 @@ def test_find_qrcode():
     qrcode = cv.find_qrcode(image,'')
     assert qrcode.data.decode().startswith('http')
 
-def test_align_image():
+def test_align_image1():
     image = imageio.imread(os.path.dirname(__file__)+'/data/barcode_monitor.jpg')
+    qrcode = cv.find_qrcode(image,'')
+    wrapped = cv.align_by_qrcode(image,qrcode)
+    assert wrapped.shape[0]>0
+
+def test_align_image2():
+    image = imageio.imread(os.path.dirname(__file__)+'/data/test.jpg')
     qrcode = cv.find_qrcode(image,'')
     wrapped = cv.align_by_qrcode(image,qrcode)
     assert wrapped.shape[0]>0
