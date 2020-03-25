@@ -60,13 +60,42 @@ def read_codes(image):
             continue
     return codes
 
+def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
+    """
+    Aling image by qrcode, normalize by qrcode size
+    """
+    tgt_pts = np.array([[boundery,qrsize],[qrsize,qrsize],[qrsize,boundery],[boundery,boundery]],np.float32)
+    shape_pts = np.array([[0.0,image.shape[0]],[image.shape[1],image.shape[0]],[image.shape[1],0],[0,0]],np.float32)
+    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon], np.float32)
+    M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
+    res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
+    for r in range(4):
+        res[:,r]/=res[-1,r]
+    width = int(np.ceil(max(res[0,:]))) + int(np.floor(min(res[0,:])))
+    height = int(np.ceil(max(res[1,:]))) + int(np.floor(min(res[1,:])))
+    warped = cv2.warpPerspective(image, M,(width,height))
+    return warped
+
+def find_qrcode(image, prefix):
+    if len(image.shape)==3:
+        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+    image = clahe.apply(image)
+    decodedObjects = pyzbar.decode(image)
+    detected_qrcode = None
+    for obj in decodedObjects:
+        text = obj.data.decode()
+        if text.startswith(prefix):
+            detected_qrcode = obj
+            break
+    return detected_qrcode
 
 class ComputerVision:
 
     def __init__(self):
         self.blueprint = Blueprint('cv', __name__)
         self.qrDecoder = cv2.QRCodeDetector()
-        self.model_ocr = monitor_ocr.build_model()
+        self.model_ocr = None
 
         @self.blueprint.route('/ping/')
         def ping():
@@ -136,15 +165,18 @@ class ComputerVision:
             if os.environ.get('CVMONITOR_SKIP_ALIGN')=='TRUE':
                 return request.data, 200, {'content-type':'image/jpeg','X-MONITOR-ID': data}
             image = np.asarray(imageio.imread(request.data))
-            # Detect and decode the qrcode
-            data,bbox,rectifiedImage = self.qrDecoder.detectAndDecode(image)
-            decodedObjects = pyzbar.decode(image)
-            
-            max_width = os.environ.get('CVMONITOR_MAX_IMAGE_WIDTH')
-            
+
+            qrprefix = str(os.environ.get('CVMONITOR_QR_PREFIX','cvmonitor'))
+            qrsize = int(os.environ.get('CVMONITOR_QR_TARGET_SIZE',100))
+            boundery = float(os.environ.get('CVMONITOR_QR_BOUNDERY_SIZE',20))
+            detected_qrcode = find_qrcode(image, qrprefix)
+            data = detected_qrcode.data.decode()
+            if detected_qrcode is None:
+                abort(500, "Could not find the qr code to aling the image")
+
+            aligned_image = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
             b = io.BytesIO()
-            imageio.imwrite(b,rectifiedImage, format='jpeg')
-            cv2.resize()
+            imageio.imwrite(b, aligned_image, format='jpeg')
             b.seek(0)
             return b.read(), 200, {'content-type':'image/jpeg','X-MONITOR-ID': data}
 
@@ -154,6 +186,8 @@ class ComputerVision:
             Run ocr on an image
             ---
             """
+            if not self.model_ocr:
+                self.model_ocr = monitor_ocr.build_model()
             if not self.model_ocr:
                 abort(500,'NN Model not found, could not run ocr')
             data = request.json

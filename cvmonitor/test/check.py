@@ -9,8 +9,30 @@ image = open(os.path.dirname(__file__)+'/data/barcode.png', 'rb').read()
 image = np.asarray(imageio.imread(image))
 decodedObjects = pyzbar.decode(image)
 pylab.imshow(image)
+# %%
+qrsize=100
+detected_barcode=decodedObjects[0]
+image = open(os.path.dirname(__file__)+'/data/barcode_monitor.jpg','rb').read()
+image = np.asarray(imageio.imread(image))
+if len(image.shape)==3:
+    image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+image = clahe.apply(image)
+boundery = 20.0
+tgt_pts = np.array([[boundery,qrsize],[qrsize,qrsize],[qrsize,boundery],[boundery,boundery]],np.float32)
+shape_pts = np.array([[0.0,image.shape[0]],[image.shape[1],image.shape[0]],[image.shape[1],0],[0,0]],np.float32)
+src_pts= np.array([(p.x,p.y) for p in detected_barcode.polygon],np.float32)
+M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
+res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
+for r in range(4):
+    res[:,r]/=res[-1,r]
+width = int(np.ceil(max(res[0,:]))) + int(np.floor(min(res[0,:])))
+height = int(np.ceil(max(res[1,:]))) + int(np.floor(min(res[1,:])))
+warped = cv2.warpPerspective(image, M,(width,height))
+pylab.imshow(warped,cmap='gray')
 
-
+#%%
+print(warped.shape)
 #%%
 def order_points(pts):
     # initialzie a list of coordinates that will be ordered
