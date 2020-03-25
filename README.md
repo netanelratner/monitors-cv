@@ -57,3 +57,25 @@ cvmonitor
 docker build .
 ```
 
+## Develop:
+
+- Ubuntu 18.04 (16.04 may work)
+
+- 
+
+```bash
+# Install Dependancies:
+apt-get update && apt-get install -yy  libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv
+# Create a virutal enviornment (once)
+python3 -venv ~/envs/cvmonitors/
+# Clone the repo:
+https://github.com/giladfr-rnd/monitors-cv && cd monitors-cv
+# Activate virtuale enviroment (every time)
+source  ~/envs/cvmonitors/bin/activate
+# Install in dev mode
+pip install -e .
+# Run tests
+pytset
+# maybe install matplotlib some packages for easier development
+pip install matplotlib pdbpp 
+```
