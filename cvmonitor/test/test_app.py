@@ -6,6 +6,7 @@ import os
 import base64
 import ujson as json
 import pytest
+from .. import cv
 
 def test_ping(client):
     
@@ -49,3 +50,5 @@ def test_ocr(client):
     assert res.json == [{'segment_name': '0', 'value': '52'}, {'segment_name': '1', 'value': '15'}, {'segment_name': '2', 'value': '93'}, {'segment_name': '3', 'value': '115'}, {'segment_name': '4', 'value': '45'}]
 
 
+def test_pdf_generate():
+    cv.generate_pdf('test.pdf','something')
