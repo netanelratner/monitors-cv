@@ -265,14 +265,21 @@ class ComputerVision:
                 results.append({'segment_name': s['name'], 'value':t})
             return json.dumps(results), 200, {'content-type':'application/json'}
 
-        @self.blueprint.route('/qr', methods=['GET'])
-        def qr():
+        @self.blueprint.route('/qr/<title>', methods=['GET'])
+        def qr(title):
             """
             Generate pdf of qr codes, after the /qr/ put title for
             each qr.
             The data in the qr code will be cvmonitor-title-16_random_characters
             ---
             description: get pdf of qr codes 
+            get:
+            parameters:
+            - in: path
+              name: title
+              schema:
+                  type: string
+                  required: true
             responses:
               '200':
                 descritption: pdf of results
@@ -284,6 +291,6 @@ class ComputerVision:
                 'Content-Disposition': 'attachment; filename="random-qr.pdf"'
             }
             pdf_buffer = io.BytesIO()
-            generate_pdf(pdf_buffer,'cvmonitor')
+            generate_pdf(pdf_buffer,title)
             pdf_buffer.seek(0)
             return pdf_buffer.read(), 200, headers
