@@ -13,6 +13,9 @@ from uuid import uuid4
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
+from prometheus_client import Summary
+
+
 
 def generate_pdf(pdf_file,title):
     nrows = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',6))
@@ -59,6 +62,7 @@ def read_codes(image):
         except:
             continue
     return codes
+
 def order_points(pts):
     """
     order such that [top-left,top-right,bottom-right,bottom-left]
@@ -199,6 +203,48 @@ class ComputerVision:
             """
             Run ocr on an image
             ---
+            description: run ocr on image
+            requestBody:
+                content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                            image:
+                                type: string
+                                contentEncoding: base64
+                                contentMediaType: image/jpeg
+                            segments:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        top:
+                                            type: number
+                                            format: integer
+                                        left:
+                                            type: number
+                                            format: integer
+                                        bottom:
+                                            type: number
+                                            format: integer
+                                        right:
+                                            type: number
+                                            format: integer
+            responses:
+              '200':
+                descritption: ocr results
+                content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                            type: object
+                            properties:
+                                segment_name: 
+                                    type: string
+                                value:
+                                    type: string
             """
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
@@ -219,19 +265,25 @@ class ComputerVision:
                 results.append({'segment_name': s['name'], 'value':t})
             return json.dumps(results), 200, {'content-type':'application/json'}
 
-        @self.blueprint.route('/qr/<title>', methods=['GET'])
-        def qr(title):
+        @self.blueprint.route('/qr', methods=['GET'])
+        def qr():
             """
             Generate pdf of qr codes, after the /qr/ put title for
             each qr.
             The data in the qr code will be cvmonitor-title-16_random_characters
             ---
+            description: get pdf of qr codes 
+            responses:
+              '200':
+                descritption: pdf of results
+                content:
+                    application/pdf:
             """
             headers = {
                 "Content-Type":'application/pdf',
                 'Content-Disposition': 'attachment; filename="random-qr.pdf"'
             }
             pdf_buffer = io.BytesIO()
-            generate_pdf(pdf_buffer,title)
+            generate_pdf(pdf_buffer,'cvmonitor')
             pdf_buffer.seek(0)
             return pdf_buffer.read(), 200, headers
