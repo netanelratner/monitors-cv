@@ -10,8 +10,10 @@ import requests
 import time
 import pickle
 import os
+from PIL import Image, ImageDraw, ImageFont
+
 name_list = [
-    "בנימין נתניהו",
+"בנימין נתניהו",
  "יולי אדלשטיין",
  'ישראל כ"ץ',
  "גלעד ארדן",
@@ -158,7 +160,7 @@ respirator = {
 }
 
 ivac = {
-     "שם החומר במזרק": lambda: random.choice(['תרופה א', "תרופה כלשהי", "ערק", "קפה"]),
+     "שם החומר במזרק": lambda: random.choice(['MEDICNE', "WINE", "COFFE", "BEER"]),
      "Volume Left to Infuse": lambda: random.randint(10, 13),
      "Volume to Insert": lambda: random.randint(10, 13),
      "Infusion Rate": lambda: random.randint(10, 13),
@@ -172,11 +174,14 @@ devices = {
 
 
 def get_qr_code(title):
-    r = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L)
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L)
     text = f'cvmonitors-{title}-{uuid4().hex[:16]}'
     qr.add_data(text)
     qr.make(fit=True)
     img = qr.make_image(fill_color='black', back_color='white')
+    qrsize = random.randint(100,150)
+    img = cv2.resize(np.array(img,dtype=np.uint8)*255,(qrsize,qrsize))
+    img= cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
     return img, text
 
 
@@ -184,7 +189,7 @@ def create_segments(device_type, image_size=[1200, 1000], x_start=200, y_start=2
     x = x_start
     y = y_start
     y_step = 100
-    x_step = 100
+    x_step = 400
     segments = []
     for m in devices[device_type]:
         segments.append({
@@ -192,22 +197,25 @@ def create_segments(device_type, image_size=[1200, 1000], x_start=200, y_start=2
             "left": x,
             "bottom": y+y_step,
             "right": x+x_step,
-            "name": m
+            "name": m,
+            
         })
         if x+x_step < image_size[1]:
             x += x_step
         else:
             x = x_start
-            y += y_start
+            y += y_step
     return segments
-    class Device():
 
 
 def fill_segments(segments, device_type):
     device = devices[device_type]
     values = []
+    colors = []
     for s in segments:
-        values.append({"segment_name": s, "value": device[s]()})
+        values.append({"segment_name": s['name'], "value": device[s['name']]()})
+        colors.append((random.randint(100,200),random.randint(100,200),random.randint(100,200)))
+    return values, colors
 
 
 def change_values(values):
@@ -224,12 +232,13 @@ def rotate_image(image, angle):
     return result
 
 
-def generate_picture(qrcode, image_size, segments, values):
-    image = np.zeros(image_size)
+def generate_picture(qrcode, image_size, segments, values, colors, fontScale,thickness):
+    image = np.zeros((image_size[0],image_size[1],3),dtype=np.uint8)
     image[12:qrcode.shape[0]+12, 18:qrcode.shape[1]+18, :] = qrcode
-    for s, v in zip(segments, values):
-        cv2.putText(image, s['v'], (s['left'], s['top'], cv2.FONT_HERSHEY_COMPLEX, fontScale=random.randint(20, 40)))
-
+    for s, v, color in zip(segments, values,colors):
+        image = cv2.putText(img=image, text=str(v['value']), org=(s['left'], s['top']), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+            fontScale=fontScale, color=color, thickness=thickness)
+    return image
 
 class Device():
 
@@ -237,14 +246,21 @@ class Device():
         self.device_type = device_type
         self.image_size = [1200, 1000]
         self.segments = create_segments(device_type, self.image_size)
-        self.values = fill_segments(segments, device_type)
-        self.qrcode, self.qrtext = rotate_image(
-            get_qr_code(device_type), float(random.randint(-20, 20)))
+        self.values, self.colors = fill_segments(self.segments, device_type)
+        qrcode, self.qrtext = get_qr_code(device_type)
+        self.qrcode =  rotate_image(qrcode, float(random.randint(-10, 10)))
         self.patient = patient
         self.room_number = room_number
+        
+        self.fontScale = random.randint(2, 5)
+        self.thickness= random.randint(2, 3)
+
 
     def picture(self):
-        return generate_picture(self.qrcode, self.image_size, self.segments, self.values)
+        return generate_picture(
+            self.qrcode, self.image_size, self.segments, self.values,self.colors,
+            self.fontScale,self.thickness,
+            )
 
     def change_values():
         change_values(values)
@@ -261,12 +277,15 @@ def fill_rooms(device_count):
     return active_devices
 
 
+
+
+
 def send_all_pictures(active_devices):
     device_indxes = list(range(len(active_devices)))
     random.shuffle(device_indxes)
     for di in device_indxes:
-        picutre = active_devices[di].picture
-        picture = rotate_image(picutre, float(random.randint(-15, 15)))
+        picutre = active_devices[di].picture()
+        picture = rotate_image(picutre, float(random.randint(-0, 0)))
         jpg = cv2.imencode('.jpg', picutre)
         res = requests.post(url, data=jpg, headers={
                             'content-type': 'image/jpeg'})
@@ -280,19 +299,24 @@ def add_devices(url, active_devices):
         device_json = {
             "monitorId": device.qrtext,
             "patientId": device.patient,
-            "roomId": device.room_number
-            "deviceCategory": device.device_type
+            "roomId": device.room_number,
+            "deviceCategory": device.device_type,
             "segments": device.segments
         }
         requests.post(url + f'/monitor/{device.qrtext}', json=device_json)
 
 
-def main()
-   if os.path.exists('devices.pkl'):
-        active_devices = pickle.load(open('devices.pkl', 'wb'))
+
+
+def main():
+    if os.path.exists('devices.pkl'):
+        active_devices = pickle.load(open('devices.pkl', 'rb'))
     else:
-        active_devices = fill_rooms()
+        active_devices = fill_rooms(5)
         pickle.dump(active_devices, open('devices.pkl','wb'))
+    for d in active_devices:
+        cv2.imwrite(d.qrtext+'.jpg', rotate_image(d.picture(), float(random.randint(-0, 0))))
+
     return
     url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
     send_all_pictures()
@@ -306,5 +330,5 @@ def main()
         time.sleep(1)
 
 
-if if __name__ == "__main__":
+if __name__ == "__main__":
     main()
