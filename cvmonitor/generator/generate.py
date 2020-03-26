@@ -223,8 +223,8 @@ def fill_segments(segments, device_type):
 def change_values(values):
     for i in range(len(values)):
         if str(values[i]['value']).isnumeric():
-            values[i]['value'] += random.randint(-1, 1)
-
+            values[i]['value'] += random.randint(-3, 3)
+    return values
 
 def rotate_image(image, angle):
     image_center = tuple(np.array(image.shape[1::-1]) / 2)
@@ -267,7 +267,7 @@ class Device():
             )
 
     def change_values(self):
-        change_values(self.values)
+        self.values = change_values(self.values)
 
 
 def fill_rooms(device_count):
@@ -290,9 +290,11 @@ def send_all_pictures(url, active_devices):
     for di in device_indxes:
         device = active_devices[di]
         picutre = device.picture()
+        print(device.values)
         picture = rotate_image(picutre, float(random.randint(-0, 0)))
         b = io.BytesIO()
         imageio.imwrite(b, picture, format='jpeg')
+        #imageio.imwrite(device.qrtext+f'.{device.index}.jpg', picture, format='jpeg')
         b.seek(0)
         headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
         if device.monitor_id is not None:
@@ -304,7 +306,7 @@ def send_all_pictures(url, active_devices):
             device.index = res_data['nextImageId']
         if 'monitorId' in res_data:
             device.monitor_id = 'monitorId'
-        time.sleep(0.1)
+
 
 
 def add_devices(url, active_devices):
