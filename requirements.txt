@@ -26,3 +26,4 @@ requests
 tqdm
 prometheus_flask_exporter
 setuptools_scm
+pytest-xdist

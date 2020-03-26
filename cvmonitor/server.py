@@ -1,6 +1,7 @@
 import gevent
 from gevent.monkey import patch_all;
 patch_all()
+import logging
 import ujson as json
 import cv2
 from flask import Flask, Blueprint, request
@@ -14,6 +15,7 @@ from prometheus_flask_exporter import PrometheusMetrics
 from setuptools_scm import get_version
 
 from . import __version__
+
 
 class Server:
 
@@ -40,12 +42,21 @@ class Server:
             """
             return 'pong'
 
-
 def main():
+    
+    for logger in (
+        
+        logging.getLogger(),
+    ):
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+        sh  = logging.StreamHandler()
+        sh.setFormatter(formatter)
+        logger.addHandler(sh)
     server = Server()
     host=os.environ.get('CVMONITOR_HOST','0.0.0.0')
     port=int(os.environ.get('CVMONITOR_PORT','8088'))
-    print('checking if model exists:')
+    logging.info('checking if model exists:')
     get_model()
-    print(f'serving on http://{host}:{port}/apidocs')
+    logging.info(f'serving on http://{host}:{port}/apidocs')
     WSGIServer((host, port), server.app).serve_forever()

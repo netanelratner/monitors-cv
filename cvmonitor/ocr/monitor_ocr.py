@@ -8,6 +8,7 @@ import torch.utils.data
 import torch.nn.functional as F
 import cv2
 import requests
+import logging
 from tqdm import tqdm
 from .model import Model
 
@@ -280,7 +281,7 @@ def get_model():
         m.update(open(path + filename,'rb').read())
         md5sum = m.hexdigest()
         if '2d0c1fe9e71fa5104a74137971857c88' != md5sum:
-            print('wrong model checksum.')
+            logging.error('wrong model checksum.')
             return False
         return True
 
@@ -289,7 +290,7 @@ def get_model():
         download_model()
 
     if is_model_ok():
-        print('model found.')
+        logging.info('model found.')
         return path + filename
     else:
         raise RuntimeError("Could not get model")
