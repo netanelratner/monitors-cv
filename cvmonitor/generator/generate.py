@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import cv2
+import io
+import imageio
 from uuid import uuid4
 import qrcode
 import random
@@ -243,6 +245,8 @@ def generate_picture(qrcode, image_size, segments, values, colors, fontScale,thi
 class Device():
 
     def __init__(self, device_type, patient, room_number):
+        self.index = 0
+        self.monitor_id = None
         self.device_type = device_type
         self.image_size = [1200, 1000]
         self.segments = create_segments(device_type, self.image_size)
@@ -262,8 +266,8 @@ class Device():
             self.fontScale,self.thickness,
             )
 
-    def change_values():
-        change_values(values)
+    def change_values(self):
+        change_values(self.values)
 
 
 def fill_rooms(device_count):
@@ -280,16 +284,27 @@ def fill_rooms(device_count):
 
 
 
-def send_all_pictures(active_devices):
+def send_all_pictures(url, active_devices):
     device_indxes = list(range(len(active_devices)))
     random.shuffle(device_indxes)
     for di in device_indxes:
-        picutre = active_devices[di].picture()
+        device = active_devices[di]
+        picutre = device.picture()
         picture = rotate_image(picutre, float(random.randint(-0, 0)))
-        jpg = cv2.imencode('.jpg', picutre)
-        res = requests.post(url, data=jpg, headers={
-                            'content-type': 'image/jpeg'})
-        time.sleep(100)
+        b = io.BytesIO()
+        imageio.imwrite(b, picture, format='jpeg')
+        b.seek(0)
+        headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
+        if device.monitor_id is not None:
+            headers['X-MONITOR-ID']=str(device.monitor_id)
+        res = requests.post(url + '/monitor_image', data=b,headers=headers)
+        res_data = res.json()
+        print(res_data)
+        if 'nextImageId' in res_data:
+            device.index = res_data['nextImageId']
+        if 'monitorId' in res_data:
+            device.monitor_id = 'monitorId'
+        time.sleep(0.1)
 
 
 def add_devices(url, active_devices):
@@ -299,11 +314,13 @@ def add_devices(url, active_devices):
         device_json = {
             "monitorId": device.qrtext,
             "patientId": device.patient,
+            "imageId":0,
             "roomId": device.room_number,
             "deviceCategory": device.device_type,
             "segments": device.segments
         }
-        requests.post(url + f'/monitor/{device.qrtext}', json=device_json)
+        res=requests.post(url + f'/monitor/{device.qrtext}', json=device_json)
+        print(res.text)
 
 
 
@@ -314,19 +331,16 @@ def main():
     else:
         active_devices = fill_rooms(5)
         pickle.dump(active_devices, open('devices.pkl','wb'))
-    for d in active_devices:
-        cv2.imwrite(d.qrtext+'.jpg', rotate_image(d.picture(), float(random.randint(-0, 0))))
-
-    return
+    # for d in active_devices:
+    #     cv2.imwrite(d.qrtext+'.jpg', rotate_image(d.picture(), float(random.randint(-0, 0))))
     url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
-    send_all_pictures()
-    add_devices(active_devices)
-    return
+    url = 'http://52.157.71.156'
+    send_all_pictures(url, active_devices)
+    add_devices(url, active_devices)
     while True:
-        send_all_pictures()
+        send_all_pictures(url, active_devices)
         for d in active_devices:
-            if random.randint(0,10) <3:
-                d.change_values()
+            d.change_values()
         time.sleep(1)
 
 
