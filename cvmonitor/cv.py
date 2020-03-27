@@ -18,6 +18,7 @@ from prometheus_client import Summary
 import pytesseract
 
 
+
 def generate_pdf(pdf_file,title):
     nrows = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',6))
     ncols = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',4))
@@ -108,6 +109,8 @@ def find_qrcode(image, prefix):
             detected_qrcode = obj
             break
     return detected_qrcode
+
+
 
 class ComputerVision:
 
@@ -247,6 +250,7 @@ class ComputerVision:
                                 value:
                                     type: string
             """
+            threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD","0.2"))
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
             if not self.model_ocr:
@@ -257,20 +261,9 @@ class ComputerVision:
             if not data.get('segments'):
                 return json.dumps([]), 200, {'content-type':'application/json'}
             segments = data['segments']
-            bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
-            if len(bbox_list) == 0:
+            if len(segments) == 0:
                 return json.dumps([]), 200, {'content-type':'application/json'}
-            texts, preds = monitor_ocr.detect(self.model_ocr, bbox_list, image)
-            more_texts = []
-            for t, p, b in zip(texts,preds,bbox_list):
-                if p>10.2:
-                    more_texts.append(texts)
-                else:
-                    tt = pytesseract.image_to_string(image[b[1]:b[3],b[0]:b[2],:])
-                    more_texts.append(tt)
-                    print(f'tessercat predicted {tt}')
-                print(f'pytorch predicted {p} : {t}')
-
+            texts = self.model_ocr.ocr(segments, image, threshold)
             results = []
             for s,t in zip(segments,texts):
                 results.append({'segment_name': s['name'], 'value':t})

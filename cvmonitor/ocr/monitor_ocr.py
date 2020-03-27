@@ -9,10 +9,41 @@ import torch.nn.functional as F
 import cv2
 import requests
 import logging
+import hashlib
+ 
 from tqdm import tqdm
 from .model import Model
-
+np.set_printoptions(precision=3)
+torch.set_printoptions(precision=3)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+
+SEGMENTS_TYPES = {
+     "Heart Rate": True,
+     "SpO2": True,
+     "RR": True,
+     "IBP": True,
+     "NIBP": True,
+     "Temp": True,
+     "etC02": True,
+     "Ventilation Mode": False,
+     "Tidal Volume": True,
+     "Expiratory Tidal Volume": True,
+     "Rate": True,
+     "Total Rate": True,
+     "Peep": True,
+     "Ppeek": True,
+     "FIO2": True,
+     "Arterial Line": True,
+     "I:E Ratio": True,
+     "Inspiratory Time": True,
+     "Medication Name": False,
+     "Volume Left to Infuse": True,
+     "Volume to Insert": True,
+     "Infusion Rate": True,
+}
+
 
 def set_parameters():
 
@@ -70,9 +101,12 @@ class AttnLabelConverter(object):
         self.character = list_token + list_character
 
         self.dict = {}
+        self.numerics = []
         for i, char in enumerate(self.character):
             # print(i, char)
             self.dict[char] = i
+            if char.isnumeric():
+                self.numerics.append(i)
 
     def encode(self, text, batch_max_length=25):
         """ convert text-label into text-index.
@@ -120,6 +154,7 @@ class ModelOCR(object):
 
         # initialize text-label and text-index converter
         self.converter = AttnLabelConverter(self.opt.character)
+
 
         self.opt.num_class = len(self.converter.character)
 
@@ -207,8 +242,8 @@ class ModelOCR(object):
     #     log.write(f'{dashed_line}\n{head}\n{dashed_line}\n')
 
 
-    def display(self, image_np, bbox_list, preds, preds_str, verbose=0):
-
+    def display(self, image_np, bbox_list, texts, scores, verbose=0):
+        threshold = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.9"))
         # preds = self.preds
         # preds_str = self.preds_str
 
@@ -217,47 +252,82 @@ class ModelOCR(object):
             head = f'{"predicted_labels":25s}\tconfidence score'
             print(f'{dashed_line}\n{head}\n{dashed_line}')
 
-        preds_prob = F.softmax(preds, dim=2)
-        preds_max_prob, _ = preds_prob.max(dim=2)
-        image_full = image_np.copy()
-        imm = image_full.copy()
+        imm = image_np.copy()
 
         madadim=[]
-        for pred, pred_max_prob,rec in zip(preds_str, preds_max_prob, bbox_list):
-
-            pred_EOS = pred.find('[s]')
-            pred = pred[:pred_EOS]  # prune after "end of sentence" token ([s])
-            pred_max_prob = pred_max_prob[:pred_EOS]
-
+        for text, score, rec in zip(texts, scores, bbox_list):
             font = cv2.FONT_HERSHEY_SIMPLEX
             fontScale = 0.8
             # Blue color in BGR
             color = (0, 255, 0)
             imm =cv2.rectangle(imm,(rec[0],rec[1]),(rec[2],rec[3]),(0,255,0),1)
-            imm = cv2.putText(imm, pred, (rec[0],rec[1]-5), font,
+            imm = cv2.putText(imm, text, (rec[0],rec[1]-5), font,
                                 fontScale, color, 2, cv2.LINE_AA)
-            madadim.append(pred)
-
-            # calculate confidence score (= multiply of pred_max_prob)
-            confidence_score = pred_max_prob.cumprod(dim=0)[-1]
-
             if verbose > 0:
-                print(f'{pred:25s}\t{confidence_score:0.4f}')
-
-        # head_text =''
-        # madadim[-2]=madadim[-2]+'/'+madadim[-1]
-        # madadim.pop(-1)
-        # madadim_name =['BPM', 'Respiration','SpO2','Bipm']
-        # y0, dy = 50,20
-        # fontScale = 0.5
-        # color = (255, 0, 0)
-        # for i,m in enumerate(madadim):
-        #     y = y0 + i * dy
-        #     imm = cv2.putText(imm, '{} : {}'.format(madadim_name[i],madadim[i]), (20, y), font,
-        #                       fontScale, color, 1, cv2.LINE_AA)
+                print(f'{text:25s}\t{score:0.4f}')
 
         return imm
-import hashlib
+
+    def ocr(self, segments, image, threshold, save_image_path=None):
+        bbox_list = []
+        are_numeric = []
+        for s in segments:
+            bbox_list.append([s['left'],s['top'],s['right'],s['bottom']])
+            if s['name'] not in SEGMENTS_TYPES:
+                are_numeric.append(False)
+            else:
+                are_numeric.append(SEGMENTS_TYPES[s['name']])
+        texts, preds = self.detect(bbox_list, image, are_numeric, save_image_path)
+        more_texts = []
+        for t, p, b in zip(texts,preds,bbox_list):
+            if p>threshold:
+                more_texts.append(texts)
+            else:
+                more_texts.append(None)
+        return texts
+
+    def detect(self, bbox_list, image, is_numeric=[], save_image_path=None):
+        """
+        # bbox_list is [[left,top,right,bottom],...]
+        """
+
+        # pre-process input
+        images_list = self.preprocess_inputs(bbox_list=bbox_list, image=image)
+
+        # predict
+        preds, preds_str = self.predict(images_list)
+
+
+        threshold = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.9"))
+        preds_prob = F.softmax(preds, dim=2)
+        preds_max_prob, _ = preds_prob.max(dim=2)
+        texts=[]
+        scores = []
+        for pred, pred_prob, numeric in zip(preds_str, preds_prob, is_numeric):
+            if not numeric:
+                pred_max_prob, _ = pred_prob.max(dim=1)
+            else:
+                pred_max_prob, _ = pred_prob[:,self.converter.numerics].max(dim=1)
+            text = ''
+            score = 1
+            pred_text = pred.replace('[s]','[')
+            for c,p in zip(pred_text,pred_max_prob):
+                if p>threshold and  c!='[':
+                    text+=c
+                    score*=p
+            if len(text)==0:
+                score=0.0
+            texts.append(text)
+            scores.append(score)
+        # display
+        if save_image_path is not None:
+
+            # add predicted text to image
+            res = self.display(image, bbox_list, texts, scores, verbose=1)
+
+            cv2.imwrite(save_image_path, res)
+            
+        return texts, scores
 
 
 def get_model():
@@ -301,41 +371,6 @@ def build_model():
     model_ocr.load_model(path)
     return model_ocr
 
-def detect(model_ocr, bbox_list, image, save_image_path=None):
-    """
-    # bbox_list is [[left,top,right,bottom],...]
-    """
-
-    # pre-process input
-    images_list = model_ocr.preprocess_inputs(bbox_list=bbox_list, image=image)
-
-    # predict
-    preds, preds_str = model_ocr.predict(images_list)
-
-    # display
-    if save_image_path is not None:
-
-        # add predicted text to image
-        res = model_ocr.display(image, bbox_list, preds, preds_str, verbose=1)
-
-        cv2.imwrite(save_image_path, res)
-
-
-    preds_prob = F.softmax(preds, dim=2)
-    preds_max_prob, _ = preds_prob.max(dim=2)
-    texts=[]
-    scores = []
-    for pred, pred_max_prob in zip(preds_str, preds_max_prob):
-        pred_EOS = pred.find('[s]')
-        pred = pred[:pred_EOS]  # prune after "end of sentence" token ([s])
-        pred_max_prob = pred_max_prob[:pred_EOS]
-
-        texts.append(pred)
-
-        # calculate confidence score (= multiply of pred_max_prob)
-        scores.append(pred_max_prob.cumprod(dim=0)[-1])
-        
-    return texts, scores
 
 if __name__ == '__main__':
 

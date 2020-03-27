@@ -18,6 +18,8 @@ from PIL import Image, ImageDraw, ImageFont
 from cvmonitor.ocr import monitor_ocr
 import pytesseract
 QRSIZE=100
+
+SEND_TO_SERVER = False
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -143,30 +145,30 @@ name_list = [
 
 monitor = {
      "Heart Rate": lambda: random.randint(45, 120),
-     "Saturation": lambda: random.randint(10, 100),
+     "SpO2": lambda: random.randint(10, 100),
      "RR": lambda: random.randint(10, 100),
      "IBP": lambda: random.randint(10, 100),
      "NIBP": lambda: random.randint(10, 100),
      "Temp": lambda: random.randint(10, 100),
-     "ETC02": lambda: random.randint(10, 100),
+     "etC02": lambda: random.randint(10, 100),
 }
 
 respirator = {
-     "Breathing Method": lambda: random.choice(["ABC", "DEF"]),
+     "Ventilation Mode": lambda: random.choice(["ABC", "DEF"]),
      "Tidal Volume": lambda: random.randint(350, 600),
      "Expiratory Tidal Volume": lambda: random.randint(10, 100),
      "Rate": lambda: random.randint(10, 100),
      "Total Rate": lambda: random.randint(10, 100),
      "Peep": lambda: random.randint(10, 100),
-     "Peak Pressure": lambda: random.randint(10, 100),
+     "Ppeek": lambda: random.randint(10, 100),
      "FIO2": lambda: random.randint(10, 100),
      "Arterial Line": lambda: random.randint(10, 100),
-     "I/E Ration": lambda: random.randint(10, 100),
-     "Ispiratory Time": lambda: random.randint(10, 100),
+     "I:E Ratio": lambda: random.randint(10, 100),
+     "Inspiratory Time": lambda: random.randint(10, 100),
 }
 
 ivac = {
-     "שם החומר במזרק": lambda: random.choice(['MEDI', "WINE", "COFFE", "BEER"]),
+     "Medication Name": lambda: random.choice(['MEDI', "WINE", "COFFE", "BEER"]),
      "Volume Left to Infuse": lambda: random.randint(10, 13),
      "Volume to Insert": lambda: random.randint(10, 13),
      "Infusion Rate": lambda: random.randint(10, 13),
@@ -191,26 +193,27 @@ def get_qr_code(title):
     return img, text
 
 
-def create_segments(device_type, image_size=[1200, 1000], x_start=200, y_start=200):
+def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], x_start=200, y_start=200):
+    size=np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
+    y_step = size[1]+50
+    x_step = size[0]+50
     x = x_start
     y = y_start
-    y_step = 100
-    x_step = 400
     segments = []
     for m in devices[device_type]:
+        if x+x_step >= image_size[1]-50:
+            x = x_start
+            y += y_step
         segments.append({
-            "top": y,
-            "left": x,
-            "bottom": min(y+60,image_size[0]-10),
-            "right": min(x+300,image_size[1]-10),
+            "top": max(y-20,0),
+            "left": max(x-20,0),
+            "bottom": int(min(y+size[1],image_size[0]-10)),
+            "right": int(min(x+size[0],image_size[1]-10)),
             "name": m,
             
         })
-        if x+x_step < image_size[1]:
+        if x+x_step < image_size[1]-50:
             x += x_step
-        else:
-            x = x_start
-            y += y_step
     return segments
 
 
@@ -254,8 +257,10 @@ class Device():
         self.index = 0
         self.monitor_id = None
         self.device_type = device_type
-        self.image_size = [1200, 1000]
-        self.segments = create_segments(device_type, self.image_size)
+        self.image_size = [1000, 1200]
+        self.fontScale = random.randint(3, 5)
+        self.thickness= random.randint(3, 8)
+        self.segments = create_segments(device_type,  self.fontScale, self.thickness, self.image_size)
         self.draw_segments = copy.deepcopy(self.segments)
         self.values, self.colors = fill_segments(self.segments, device_type)
         qrcode, self.qrtext = get_qr_code(device_type)
@@ -263,9 +268,7 @@ class Device():
         self.patient = patient
         self.room_number = room_number
         
-        self.fontScale = random.randint(2, 5)
-        self.thickness= random.randint(2, 3)
-
+        
 
     def picture(self):
         return generate_picture(
@@ -366,44 +369,35 @@ def send_all_pictures(url, active_devices):
     random.shuffle(device_indxes)
     for di in device_indxes:
         device = active_devices[di]
-        picture = device.picture()
+        image = device.picture()
         print(device.values)
-        picture = draw_segements(picture, device.draw_segments,device.colors)
+        image = draw_segements(image, device.draw_segments,device.colors)
         b = io.BytesIO()
-        imageio.imwrite(b, picture, format='jpeg')
-        #imageio.imwrite(device.qrtext+f'.{device.index}.jpg', picture, format='jpeg')
+        imageio.imwrite(b, image, format='jpeg')
+        imageio.imwrite(device.qrtext+f'.{device.index}.jpg', image, format='jpeg')
         b.seek(0)
         headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
         if device.monitor_id is not None:
             headers['X-MONITOR-ID']=str(device.monitor_id)
-        res = requests.post(url + '/monitor_image', data=b,headers=headers)
-        res_data = res.json()
         
-        # detected_qrcode = find_qrcode(picture, '')
-        # if detected_qrcode is None:
-        #     raise RuntimeError("Could not detect QR")
-        # data = detected_qrcode.data.decode()
-        # wraped, M = align_by_qrcode(picture, detected_qrcode, qrsize=QRSIZE, boundery = 20)
-        # segments = device.segments
-        # bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
-        # texts, preds = monitor_ocr.detect(model_ocr, bbox_list, wraped,'test.jpg')
-        # more_texts = []
-        # for t, p, b in zip(texts,preds,bbox_list):
-        #     if p>10.2:
-        #         more_texts.append(texts)
-        #     else:
-                
-        #         tt = pytesseract.image_to_string(picture[b[1]:b[3],b[0]:b[2],:])
-        #         more_texts.append(tt)
-        #         print(f'tessercat predicted {tt}')
-        #     print(f'pytorch predicted {p} : {t}')
-
-        # print(texts,preds)
-        print(res_data)
-        if 'nextImageId' in res_data:
-            device.index = res_data['nextImageId']
-        if 'monitorId' in res_data:
-            device.monitor_id = 'monitorId'
+        if SEND_TO_SERVER:
+            res = requests.post(url + '/monitor_image', data=b,headers=headers)
+            res_data = res.json()
+            print(texts,preds)
+            print(res_data)
+            if 'nextImageId' in res_data:
+                device.index = res_data['nextImageId']
+            if 'monitorId' in res_data:
+                device.monitor_id = 'monitorId'
+        else:
+            detected_qrcode = find_qrcode(image, '')
+            if detected_qrcode is None:
+                raise RuntimeError("Could not detect QR")
+            data = detected_qrcode.data.decode()
+            wraped, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+            segments = device.segments
+            texts = model_ocr.ocr(segments, wraped, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
+            print(texts)
 
 
 
@@ -446,6 +440,7 @@ def main():
     url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
     url = 'http://52.157.71.156'
     send_all_pictures(url, active_devices)
+    exit()
     add_devices(url, active_devices)
     while True:
         send_all_pictures(url, active_devices)
