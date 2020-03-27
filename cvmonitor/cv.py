@@ -1,5 +1,6 @@
 from flask import Flask, Blueprint, request, abort, Response
 import cv2
+import logging
 import imageio
 import ujson as json
 import numpy as np
@@ -262,13 +263,13 @@ class ComputerVision:
             texts, preds = monitor_ocr.detect(self.model_ocr, bbox_list, image)
             more_texts = []
             for t, p, b in zip(texts,preds,bbox_list):
-                if p>0.2:
+                if p>10.2:
                     more_texts.append(texts)
                 else:
                     tt = pytesseract.image_to_string(image[b[1]:b[3],b[0]:b[2],:])
                     more_texts.append(tt)
-                    log.debug(f'tessercat predicted {tt}')
-                log.debug(f'pytorch predicted {p} : {t}')
+                    print(f'tessercat predicted {tt}')
+                print(f'pytorch predicted {p} : {t}')
 
             results = []
             for s,t in zip(segments,texts):

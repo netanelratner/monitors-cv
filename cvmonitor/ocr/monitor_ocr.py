@@ -244,17 +244,17 @@ class ModelOCR(object):
             if verbose > 0:
                 print(f'{pred:25s}\t{confidence_score:0.4f}')
 
-        head_text =''
-        madadim[-2]=madadim[-2]+'/'+madadim[-1]
-        madadim.pop(-1)
-        madadim_name =['BPM', 'Respiration','SpO2','Bipm']
-        y0, dy = 50,20
-        fontScale = 0.5
-        color = (255, 0, 0)
-        for i,m in enumerate(madadim):
-            y = y0 + i * dy
-            imm = cv2.putText(imm, '{} : {}'.format(madadim_name[i],madadim[i]), (20, y), font,
-                              fontScale, color, 1, cv2.LINE_AA)
+        # head_text =''
+        # madadim[-2]=madadim[-2]+'/'+madadim[-1]
+        # madadim.pop(-1)
+        # madadim_name =['BPM', 'Respiration','SpO2','Bipm']
+        # y0, dy = 50,20
+        # fontScale = 0.5
+        # color = (255, 0, 0)
+        # for i,m in enumerate(madadim):
+        #     y = y0 + i * dy
+        #     imm = cv2.putText(imm, '{} : {}'.format(madadim_name[i],madadim[i]), (20, y), font,
+        #                       fontScale, color, 1, cv2.LINE_AA)
 
         return imm
 import hashlib

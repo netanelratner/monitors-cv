@@ -15,7 +15,9 @@ import os
 import copy
 from pyzbar import pyzbar
 from PIL import Image, ImageDraw, ImageFont
-
+from cvmonitor.ocr import monitor_ocr
+import pytesseract
+QRSIZE=100
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -237,7 +239,7 @@ def rotate_image(image, angle):
 
 
 def generate_picture(qrcode, image_size, segments, values, colors, fontScale,thickness):
-    image = np.zeros((image_size[0],image_size[1],3),dtype=np.uint8)
+    image = np.zeros((image_size[0],image_size[1],3),dtype=np.uint8)+40
     image[12:qrcode.shape[0]+12, 18:qrcode.shape[1]+18, :] = qrcode
     for s, v, color in zip(segments, values,colors):
         size=cv2.getTextSize(text=str(v['value']), fontFace=cv2.FONT_HERSHEY_PLAIN, 
@@ -312,7 +314,7 @@ def find_qrcode(image, prefix):
             break
     return detected_qrcode
 
-def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
+def align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20.0):
     """
     Aling image by qrcode, normalize by qrcode size
     """
@@ -324,7 +326,7 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
     for r in range(4):
         res[:,r]/=res[-1,r]
-    width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res[0,:])))
+    width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res [0,:])))
     height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
     warped = cv2.warpPerspective(image, M,(width,height))
     return warped, M
@@ -334,7 +336,7 @@ def update_segments(image,segments,qrprefix='cvmonitor'):
     if detected_qrcode is None:
         raise RuntimeError("Could not detect QR")
     data = detected_qrcode.data.decode()
-    wraped, M = align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20)
+    wraped, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
     segments = copy.deepcopy(segments)
     for i,s in enumerate(segments):
         V = np.array([
@@ -357,6 +359,8 @@ def draw_segements(image, segments,colors):
         image =cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),c,1)
     return image
 
+model_ocr = monitor_ocr.build_model()
+            
 def send_all_pictures(url, active_devices):
     device_indxes = list(range(len(active_devices)))
     random.shuffle(device_indxes)
@@ -374,6 +378,27 @@ def send_all_pictures(url, active_devices):
             headers['X-MONITOR-ID']=str(device.monitor_id)
         res = requests.post(url + '/monitor_image', data=b,headers=headers)
         res_data = res.json()
+        
+        # detected_qrcode = find_qrcode(picture, '')
+        # if detected_qrcode is None:
+        #     raise RuntimeError("Could not detect QR")
+        # data = detected_qrcode.data.decode()
+        # wraped, M = align_by_qrcode(picture, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+        # segments = device.segments
+        # bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
+        # texts, preds = monitor_ocr.detect(model_ocr, bbox_list, wraped,'test.jpg')
+        # more_texts = []
+        # for t, p, b in zip(texts,preds,bbox_list):
+        #     if p>10.2:
+        #         more_texts.append(texts)
+        #     else:
+                
+        #         tt = pytesseract.image_to_string(picture[b[1]:b[3],b[0]:b[2],:])
+        #         more_texts.append(tt)
+        #         print(f'tessercat predicted {tt}')
+        #     print(f'pytorch predicted {p} : {t}')
+
+        # print(texts,preds)
         print(res_data)
         if 'nextImageId' in res_data:
             device.index = res_data['nextImageId']
