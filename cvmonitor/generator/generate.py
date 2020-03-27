@@ -17,9 +17,11 @@ from pyzbar import pyzbar
 from PIL import Image, ImageDraw, ImageFont
 from cvmonitor.ocr import monitor_ocr
 import pytesseract
+import datetime
+import argparse
 QRSIZE=100
 
-SEND_TO_SERVER = False
+SEND_TO_SERVER = True
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -372,18 +374,18 @@ def send_all_pictures(url, active_devices):
         image = device.picture()
         print(device.values)
         image = draw_segements(image, device.draw_segments,device.colors)
-        b = io.BytesIO()
-        imageio.imwrite(b, image, format='jpeg')
-        imageio.imwrite(device.qrtext+f'.{device.index}.jpg', image, format='jpeg')
-        b.seek(0)
-        headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
-        if device.monitor_id is not None:
-            headers['X-MONITOR-ID']=str(device.monitor_id)
         
         if SEND_TO_SERVER:
+            b = io.BytesIO()
+            imageio.imwrite(b, image, format='jpeg')
+            imageio.imwrite(device.qrtext+f'.{device.index}.jpg', image, format='jpeg')
+            b.seek(0)
+            headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
+            if device.monitor_id is not None:
+                headers['X-MONITOR-ID']=str(device.monitor_id)
+                headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
             res = requests.post(url + '/monitor_image', data=b,headers=headers)
             res_data = res.json()
-            print(texts,preds)
             print(res_data)
             if 'nextImageId' in res_data:
                 device.index = res_data['nextImageId']
@@ -394,9 +396,9 @@ def send_all_pictures(url, active_devices):
             if detected_qrcode is None:
                 raise RuntimeError("Could not detect QR")
             data = detected_qrcode.data.decode()
-            wraped, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+            image, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
             segments = device.segments
-            texts = model_ocr.ocr(segments, wraped, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
+            texts = model_ocr.ocr(segments, image, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
             print(texts)
 
 
@@ -451,5 +453,10 @@ def main():
 
 
 if __name__ == "__main__":
+    parser =  argparse.ArgumentParser()
+    parser.add_argument('--no_send',action='store_true','dont send to server just create images')
+    args = parser.parse_args()
+    if args.no_send:
+        SEND_TO_SERVER=False
     random.seed(0)
     main()
