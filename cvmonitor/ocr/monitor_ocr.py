@@ -206,7 +206,7 @@ class ModelOCR(object):
             stackedImages = np.stack(images_list)
             stackedImages = np.expand_dims(stackedImages, axis=1)
             stackedImages = stackedImages / 255.
-            torchStackedImages = torch.from_numpy(stackedImages[..., 0])
+            torchStackedImages = torch.from_numpy(stackedImages[..., 0]) # take only first channel since
             torchStackedImages = torchStackedImages.type(torch.float32)
             torchStackedImages = torchStackedImages.sub_(0.5).div_(0.5)
             torchStackedImages = torchStackedImages.to(device)
@@ -291,6 +291,12 @@ class ModelOCR(object):
         # bbox_list is [[left,top,right,bottom],...]
         """
 
+        # convert to grayscale
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) # FIXME: check if RGB or BGR
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+        image = clahe.apply(image)
+        image = np.stack([image, image, image],axis=-1)
+
         # pre-process input
         images_list = self.preprocess_inputs(bbox_list=bbox_list, image=image)
 
@@ -298,25 +304,58 @@ class ModelOCR(object):
         preds, preds_str = self.predict(images_list)
 
 
-        threshold = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.9"))
+        threshold_character = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.9"))
+        threshold_numeric = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.5"))
         preds_prob = F.softmax(preds, dim=2)
         preds_max_prob, _ = preds_prob.max(dim=2)
         texts=[]
         scores = []
+        n = -1 # counter
         for pred, pred_prob, numeric in zip(preds_str, preds_prob, is_numeric):
+            n += 1
             if not numeric:
                 pred_max_prob, _ = pred_prob.max(dim=1)
+                threshold = threshold_character
+
+                text = ''
+                score = 1
+                pred_text = pred.replace('[s]', '[')
+                for c, p in zip(pred_text, pred_max_prob):
+                    if p > threshold and c != '[':
+                        text += c
+                        score *= p
+                if len(text) == 0:
+                    score = 0.0
+
             else:
-                pred_max_prob, _ = pred_prob[:,self.converter.numerics].max(dim=1)
-            text = ''
-            score = 1
-            pred_text = pred.replace('[s]','[')
-            for c,p in zip(pred_text,pred_max_prob):
-                if p>threshold and  c!='[':
-                    text+=c
-                    score*=p
-            if len(text)==0:
-                score=0.0
+                # pred_max_prob, _ = pred_prob[:,self.converter.numerics].max(dim=1)
+                # threshold = threshold_character
+
+                # recalculate probabilities for numeric characters only
+                pred_numeric = preds[n, :, self.converter.numerics]
+                pred_prob_numeric = F.softmax(pred_numeric, dim=1)
+
+                pred_max_prob, preds_index = pred_prob_numeric.max(dim=1)
+
+                preds_index += self.converter.numerics[0]
+
+                # convert indices to text
+                pred = ''.join([self.converter.character[i] for i in preds_index])
+
+                # preds_str = self.converter.decode(preds_index, length=1)
+
+                threshold = threshold_numeric
+
+                text = ''
+                score = 1
+                pred_text = pred.replace('[s]', '[')
+                for c, p in zip(pred_text, pred_max_prob):
+                    if p > threshold and c != '[':
+                        text += c
+                        score *= p
+                if len(text) == 0:
+                    score = 0.0
+
             texts.append(text)
             scores.append(score)
         # display

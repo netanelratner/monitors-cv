@@ -21,7 +21,7 @@ import datetime
 import argparse
 QRSIZE=100
 
-SEND_TO_SERVER = True
+SEND_TO_SERVER = False
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -398,6 +398,7 @@ def send_all_pictures(url, active_devices):
             data = detected_qrcode.data.decode()
             image, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
             segments = device.segments
+            # FIXME: assume that image is in RGB (not BGR). if not - should fix code in monitor_ocr.detect()
             texts = model_ocr.ocr(segments, image, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
             print(texts)
 
