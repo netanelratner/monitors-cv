@@ -319,8 +319,23 @@ def detect(model_ocr, bbox_list, image, save_image_path=None):
         res = model_ocr.display(image, bbox_list, preds, preds_str, verbose=1)
 
         cv2.imwrite(save_image_path, res)
-    texts = [ p[:p.find('[s]')] for p in preds_str]
-    return texts
+
+
+    preds_prob = F.softmax(preds, dim=2)
+    preds_max_prob, _ = preds_prob.max(dim=2)
+    texts=[]
+    scores = []
+    for pred, pred_max_prob in zip(preds_str, preds_max_prob):
+        pred_EOS = pred.find('[s]')
+        pred = pred[:pred_EOS]  # prune after "end of sentence" token ([s])
+        pred_max_prob = pred_max_prob[:pred_EOS]
+
+        texts.append(pred)
+
+        # calculate confidence score (= multiply of pred_max_prob)
+        scores.append(pred_max_prob.cumprod(dim=0)[-1])
+        
+    return texts, scores
 
 if __name__ == '__main__':
 

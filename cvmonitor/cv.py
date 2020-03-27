@@ -14,7 +14,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
 from prometheus_client import Summary
-
+import pytesseract
 
 
 def generate_pdf(pdf_file,title):
@@ -259,7 +259,17 @@ class ComputerVision:
             bbox_list = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
             if len(bbox_list) == 0:
                 return json.dumps([]), 200, {'content-type':'application/json'}
-            texts = monitor_ocr.detect(self.model_ocr, bbox_list, image)
+            texts, preds = monitor_ocr.detect(self.model_ocr, bbox_list, image)
+            more_texts = []
+            for t, p, b in zip(texts,preds,bbox_list):
+                if p>0.2:
+                    more_texts.append(texts)
+                else:
+                    tt = pytesseract.image_to_string(image[b[1]:b[3],b[0]:b[2],:])
+                    more_texts.append(tt)
+                    log.debug(f'tessercat predicted {tt}')
+                log.debug(f'pytorch predicted {p} : {t}')
+
             results = []
             for s,t in zip(segments,texts):
                 results.append({'segment_name': s['name'], 'value':t})
