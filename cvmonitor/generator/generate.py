@@ -12,6 +12,8 @@ import requests
 import time
 import pickle
 import os
+import copy
+from pyzbar import pyzbar
 from PIL import Image, ImageDraw, ImageFont
 
 name_list = [
@@ -162,7 +164,7 @@ respirator = {
 }
 
 ivac = {
-     "שם החומר במזרק": lambda: random.choice(['MEDICNE', "WINE", "COFFE", "BEER"]),
+     "שם החומר במזרק": lambda: random.choice(['MEDI', "WINE", "COFFE", "BEER"]),
      "Volume Left to Infuse": lambda: random.randint(10, 13),
      "Volume to Insert": lambda: random.randint(10, 13),
      "Infusion Rate": lambda: random.randint(10, 13),
@@ -181,7 +183,7 @@ def get_qr_code(title):
     qr.add_data(text)
     qr.make(fit=True)
     img = qr.make_image(fill_color='black', back_color='white')
-    qrsize = random.randint(100,150)
+    qrsize = random.randint(120,180)
     img = cv2.resize(np.array(img,dtype=np.uint8)*255,(qrsize,qrsize))
     img= cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
     return img, text
@@ -197,8 +199,8 @@ def create_segments(device_type, image_size=[1200, 1000], x_start=200, y_start=2
         segments.append({
             "top": y,
             "left": x,
-            "bottom": y+y_step,
-            "right": x+x_step,
+            "bottom": min(y+60,image_size[0]-10),
+            "right": min(x+300,image_size[1]-10),
             "name": m,
             
         })
@@ -216,7 +218,7 @@ def fill_segments(segments, device_type):
     colors = []
     for s in segments:
         values.append({"segment_name": s['name'], "value": device[s['name']]()})
-        colors.append((random.randint(100,200),random.randint(100,200),random.randint(100,200)))
+        colors.append((random.randint(20,255),random.randint(20,255),random.randint(20,255)))
     return values, colors
 
 
@@ -238,7 +240,9 @@ def generate_picture(qrcode, image_size, segments, values, colors, fontScale,thi
     image = np.zeros((image_size[0],image_size[1],3),dtype=np.uint8)
     image[12:qrcode.shape[0]+12, 18:qrcode.shape[1]+18, :] = qrcode
     for s, v, color in zip(segments, values,colors):
-        image = cv2.putText(img=image, text=str(v['value']), org=(s['left'], s['top']), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+        size=cv2.getTextSize(text=str(v['value']), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+            fontScale=fontScale,thickness=thickness)
+        image = cv2.putText(img=image, text=str(v['value']), org=(s['left'], s['top']+size[0][1]+20), fontFace=cv2.FONT_HERSHEY_PLAIN, 
             fontScale=fontScale, color=color, thickness=thickness)
     return image
 
@@ -250,6 +254,7 @@ class Device():
         self.device_type = device_type
         self.image_size = [1200, 1000]
         self.segments = create_segments(device_type, self.image_size)
+        self.draw_segments = copy.deepcopy(self.segments)
         self.values, self.colors = fill_segments(self.segments, device_type)
         qrcode, self.qrtext = get_qr_code(device_type)
         self.qrcode =  rotate_image(qrcode, float(random.randint(-10, 10)))
@@ -262,7 +267,7 @@ class Device():
 
     def picture(self):
         return generate_picture(
-            self.qrcode, self.image_size, self.segments, self.values,self.colors,
+            self.qrcode, self.image_size, self.draw_segments, self.values,self.colors,
             self.fontScale,self.thickness,
             )
 
@@ -280,18 +285,86 @@ def fill_rooms(device_count):
         active_devices.append(Device('respirator', patient, room))
     return active_devices
 
+def order_points(pts):
+    """
+    order such that [top-left,top-right,bottom-right,bottom-left]
+    """
+    rect = np.zeros((4, 2), dtype = "float32")
+    s = pts.sum(axis = 1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    diff = np.diff(pts, axis = 1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    return rect
 
+def find_qrcode(image, prefix):
+    if len(image.shape)==3:
+        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+    image = clahe.apply(image)
+    decodedObjects = pyzbar.decode(image)
+    detected_qrcode = None
+    for obj in decodedObjects:
+        text = obj.data.decode()
+        if text.startswith(prefix):
+            detected_qrcode = obj
+            break
+    return detected_qrcode
 
+def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
+    """
+    Aling image by qrcode, normalize by qrcode size
+    """
+    tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
+    shape_pts = np.array([[0,0],[image.shape[1],0],[image.shape[1],image.shape[0]],[0.0,image.shape[0]]],np.float32)
+    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
+    src_pts=order_points(src_pts)
+    M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
+    res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
+    for r in range(4):
+        res[:,r]/=res[-1,r]
+    width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res[0,:])))
+    height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
+    warped = cv2.warpPerspective(image, M,(width,height))
+    return warped, M
 
+def update_segments(image,segments,qrprefix='cvmonitor'):
+    detected_qrcode = find_qrcode(image, qrprefix)
+    if detected_qrcode is None:
+        raise RuntimeError("Could not detect QR")
+    data = detected_qrcode.data.decode()
+    wraped, M = align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20)
+    segments = copy.deepcopy(segments)
+    for i,s in enumerate(segments):
+        V = np.array([
+            [s['left'],s['top'],1],
+            [s['left'],s['bottom'],1],
+            [s['right'],s['top'],1],
+            [s['right'],s['bottom'],1]
+        ])
+        U = M @ V.transpose()
+        for r in range(4):
+            U[:,r]/=U[-1,r]
+        s['left'] = int(min(U[0,0:2]))
+        s['right'] = min(int(max(U[0,2:])),wraped.shape[1])
+        s['top'] = int(min(U[1,0],U[1,2]))
+        s['bottom'] = min(int(max(U[1,1],U[1,3])),wraped.shape[0])
+    return wraped, segments
+
+def draw_segements(image, segments,colors):
+    for s,c in zip(segments,colors):
+        image =cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),c,1)
+    return image
 
 def send_all_pictures(url, active_devices):
     device_indxes = list(range(len(active_devices)))
     random.shuffle(device_indxes)
     for di in device_indxes:
         device = active_devices[di]
-        picutre = device.picture()
+        picture = device.picture()
         print(device.values)
-        picture = rotate_image(picutre, float(random.randint(-0, 0)))
+        picture = draw_segements(picture, device.draw_segments,device.colors)
         b = io.BytesIO()
         imageio.imwrite(b, picture, format='jpeg')
         #imageio.imwrite(device.qrtext+f'.{device.index}.jpg', picture, format='jpeg')
@@ -333,8 +406,18 @@ def main():
     else:
         active_devices = fill_rooms(5)
         pickle.dump(active_devices, open('devices.pkl','wb'))
-    # for d in active_devices:
-    #     cv2.imwrite(d.qrtext+'.jpg', rotate_image(d.picture(), float(random.randint(-0, 0))))
+    
+    for d in active_devices:
+        picture=d.picture()
+        picture, new_segments =update_segments(picture,d.segments,qrprefix='cvmonitor')
+        d.segments = new_segments
+        picture=draw_segements(picture,new_segments,d.colors)
+        try:
+            cv2.imwrite(d.qrtext+'.jpg', picture)
+        except:
+            cv2.imwrite(d.qrtext+'.jpg', d.picture())
+            print(d.qrtext)
+            exit(-1)
     url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
     url = 'http://52.157.71.156'
     send_all_pictures(url, active_devices)
@@ -347,4 +430,5 @@ def main():
 
 
 if __name__ == "__main__":
+    random.seed(0)
     main()
