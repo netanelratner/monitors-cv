@@ -383,7 +383,7 @@ def send_all_pictures(url, active_devices):
             headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
             if device.monitor_id is not None:
                 headers['X-MONITOR-ID']=str(device.monitor_id)
-                headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
+            headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
             res = requests.post(url + '/monitor_image', data=b,headers=headers)
             res_data = res.json()
             print(res_data)
