@@ -440,7 +440,8 @@ def main():
     url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
     url = 'http://52.157.71.156'
     send_all_pictures(url, active_devices)
-    exit()
+    if not SEND_TO_SERVER:
+        exit(0)
     add_devices(url, active_devices)
     while True:
         send_all_pictures(url, active_devices)
