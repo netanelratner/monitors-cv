@@ -196,7 +196,8 @@ def get_qr_code(title):
 
 
 def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], x_start=200, y_start=200):
-    size=np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
+    # size=np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
+    size=np.array(cv2.getTextSize(text=str('CO'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
     y_step = size[1]+50
     x_step = size[0]+50
     x = x_start
@@ -361,6 +362,7 @@ def update_segments(image,segments,qrprefix='cvmonitor'):
 
 def draw_segements(image, segments,colors):
     for s,c in zip(segments,colors):
+        c = np.median(image, axis=[0, 1]) # change rectangle               color as background
         image =cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),c,1)
     return image
 

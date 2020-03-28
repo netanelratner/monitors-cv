@@ -291,21 +291,34 @@ class ModelOCR(object):
         # bbox_list is [[left,top,right,bottom],...]
         """
 
+        # ------------------
+        # Preprocessing
+        # ------------------
+
         # convert to grayscale
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) # FIXME: check if RGB or BGR
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+
+        # histogram equalizatoin
+        clahe = cv2.createCLAHE(clipLimit=20.0, tileGridSize=(16,16))
         image = clahe.apply(image)
+
+        # simple streching
+        # image -= image.min()
+        # image = (image / image.max() * 255.).astype(np.uint8)
+
         image = np.stack([image, image, image],axis=-1)
 
         # pre-process input
         images_list = self.preprocess_inputs(bbox_list=bbox_list, image=image)
+
+        # ------------------
 
         # predict
         preds, preds_str = self.predict(images_list)
 
 
         threshold_character = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.9"))
-        threshold_numeric = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.5"))
+        threshold_numeric = float(os.environ.get('CVMONITOR_THRESHOLD_CHARACTER',"0.95"))
         preds_prob = F.softmax(preds, dim=2)
         preds_max_prob, _ = preds_prob.max(dim=2)
         texts=[]
