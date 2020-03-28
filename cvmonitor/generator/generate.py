@@ -21,7 +21,7 @@ import datetime
 import argparse
 QRSIZE=100
 
-SEND_TO_SERVER = False
+SEND_TO_SERVER = True
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -380,7 +380,7 @@ def send_all_pictures(url, active_devices):
         if SEND_TO_SERVER:
             b = io.BytesIO()
             imageio.imwrite(b, image, format='jpeg')
-            imageio.imwrite(device.qrtext+f'.{device.index}.jpg', image, format='jpeg')
+            #imageio.imwrite(device.qrtext+f'.{device.index}.jpg', image, format='jpeg')
             b.seek(0)
             headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
             if device.monitor_id is not None:
