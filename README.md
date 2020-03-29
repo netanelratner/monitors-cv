@@ -65,7 +65,7 @@ docker build .
 
 ```bash
 # Install Dependancies:
-apt-get update && apt-get install -yy  libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git-lfs
+sudo apt-get update && sudo apt-get install -yy  libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git-lfs
 # Create a virutal enviornment (once)
 python3 -venv ~/envs/cvmonitors/
 # Clone the repo:

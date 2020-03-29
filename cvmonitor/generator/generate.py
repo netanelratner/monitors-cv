@@ -1,24 +1,31 @@
-#!/usr/bin/python
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import cv2
-import io
-import imageio
-from uuid import uuid4
-import qrcode
-import random
-import numpy as np
-import requests
-import time
-import pickle
-import os
-import copy
-from pyzbar import pyzbar
-from PIL import Image, ImageDraw, ImageFont
-from cvmonitor.ocr import monitor_ocr
-import pytesseract
-import datetime
 import argparse
+import copy
+import datetime
+import io
+import logging
+import os
+import pickle
+import random
+import time
+from typing import Dict, List, Set
+from uuid import uuid4
+
+import matplotlib
+import cv2
+import imageio
+import numpy as np
+import pylab
+import pytesseract
+import qrcode
+import requests
+from PIL import Image, ImageDraw, ImageFont
+from pyzbar import pyzbar
+from matplotlib import pyplot as plt
+from matplotlib import animation
+from cvmonitor.ocr import monitor_ocr
+
 QRSIZE=100
 
 SEND_TO_SERVER = True
@@ -283,8 +290,8 @@ class Device():
         self.values = change_values(self.values)
 
 
-def fill_rooms(device_count):
-    active_devices = []
+def fill_rooms(device_count) -> List[Device]:
+    active_devices : List[Device] = []
     names = copy.deepcopy(name_list)
     random.shuffle(names)
     for i in range(device_count):
@@ -369,12 +376,8 @@ def draw_segements(image, segments,colors):
     return image
 
 model_ocr = monitor_ocr.build_model()
-            
-def send_all_pictures(url, active_devices):
-    device_indxes = list(range(len(active_devices)))
-    random.shuffle(device_indxes)
-    for di in device_indxes:
-        device = active_devices[di]
+
+def send_picture(url: str, device: Device):
         image = device.picture()
         print(device.values)
         image = draw_segements(image, device.draw_segments,device.colors)
@@ -406,9 +409,15 @@ def send_all_pictures(url, active_devices):
             texts = model_ocr.ocr(segments, image, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
             print(texts)
 
+def send_all_pictures(url, active_devices: List[Device]):
+    device_indxes = list(range(len(active_devices)))
+    random.shuffle(device_indxes)
+    for di in device_indxes:
+        device = active_devices[di]
+        send_picture(url, device)
 
 
-def add_devices(url, active_devices):
+def add_devices(url: str, active_devices: List[Device]):
 
     for di in range(len(active_devices)):
         device = active_devices[di]
@@ -426,7 +435,7 @@ def add_devices(url, active_devices):
 
 
 
-def main():
+def generate_data(url):
     if os.path.exists('devices.pkl'):
         active_devices = pickle.load(open('devices.pkl', 'rb'))
     else:
@@ -444,8 +453,6 @@ def main():
             cv2.imwrite(d.qrtext+'.jpg', d.picture())
             print(d.qrtext)
             exit(-1)
-    url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
-    url = 'http://52.157.71.156'
     send_all_pictures(url, active_devices)
     if not SEND_TO_SERVER:
         exit(0)
@@ -456,11 +463,33 @@ def main():
             d.change_values()
         time.sleep(1)
 
+def simulate_monitor(url):
+    matplotlib.use('tkAgg')
+    devices: List[Device] = fill_rooms(1)
+    device = devices[random.randint(0,2)]
+    image = device.picture()
+    fig = pylab.figure(figsize=[12,10])
+    pylab.ioff()
+    imobg = pylab.imshow(image)
+    print(device.values)
+    while True:
+        image = device.picture()
+        pylab.imshow(image)
+        plt.pause(0.05)
+        if random.randint(0,1)==0:
+            device.change_values()
+
+        print('.',end='')
+    
 
 if __name__ == "__main__":
+    url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
+    url = 'http://52.157.71.156'
+    
     parser =  argparse.ArgumentParser()
     parser.add_argument('--no_send',action='store_true',help='dont send to server just create images')
     parser.add_argument('--send',action='store_true',help='dont send to server just create images')
+    parser.add_argument('--sim',action='store_true',help='Simulate a device')
     args = parser.parse_args()
     if args.no_send!=args.send:
         if args.no_send:
@@ -469,4 +498,7 @@ if __name__ == "__main__":
             SEND_TO_SERVER=True
 
     random.seed(0)
-    main()
+    if args.sim:
+        simulate_monitor(url)
+    else:
+        generate_data(url)

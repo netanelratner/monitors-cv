@@ -1,5 +1,5 @@
 FROM nvidia/cuda:10.1-cudnn7-runtime
-RUN apt-get update && apt-get install -yy  libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git &&  rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -yy  libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git python3-tk &&  rm -rf /var/lib/apt/lists/*
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -mvenv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
