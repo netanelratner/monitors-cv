@@ -87,15 +87,27 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     width = image.shape[1]
     height = image.shape[0]
 
-
     # Do we need to rotate the image?
-    y_mean = np.mean(src_pts[1,:])
+    y_mean = np.mean(src_pts[:,1])
     flip_y = y_mean > height//2
-    R = None
+    R1 = np.eye(3)
     if flip_y:
-        R = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),180,1)
-        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        R1 = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),180,1)
+        src_pts = (R1 @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
         image = cv2.rotate(image,cv2.ROTATE_180)
+        R1 = np.concatenate((R1,[[0,0,1]]))
+
+    x_mean = np.mean(src_pts[:,0])
+    flip_x = x_mean > width//2
+    R2 = np.eye(3)
+    if flip_x:
+        R2 = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),-90,1)
+        src_pts = (R2 @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
+        R2 = np.concatenate((R2,[[0,0,1]]))
+    R = R2 @ R1
+
+
     src_pts=order_points(src_pts).astype(np.float32)
 
     tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
@@ -107,15 +119,14 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res[0,:])))
     height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
     warped = cv2.warpPerspective(image, M,(width,height))
-    if flip_y:
-        M = M @ np.concatenate((R,[[0,0,1]]))
+    M = M @ R
     return warped, M
 
 def find_qrcode(image, prefix):
     if len(image.shape)==3:
         image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
-    image = clahe.apply(image)
+    #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+    #image = clahe.apply(image)
     decodedObjects = pyzbar.decode(image)
     detected_qrcode = None
     for obj in decodedObjects:

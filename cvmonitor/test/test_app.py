@@ -84,3 +84,10 @@ def test_align_flipped():
     wrapped, M = cv.align_by_qrcode(image,qrcode)
 
     assert wrapped.shape[0]>0
+
+def test_align_90deg():
+    image = imageio.imread(os.path.dirname(__file__)+'/data/90_deg_rotate.jpg')
+    qrcode = cv.find_qrcode(image,'')
+    wrapped, M = cv.align_by_qrcode(image,qrcode)
+
+    assert wrapped.shape[0]>0
