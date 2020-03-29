@@ -21,7 +21,7 @@ import datetime
 import argparse
 QRSIZE=100
 
-SEND_TO_SERVER = True
+SEND_TO_SERVER = False
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -285,9 +285,11 @@ class Device():
 
 def fill_rooms(device_count):
     active_devices = []
+    names = copy.deepcopy(name_list)
+    random.shuffle(names)
     for i in range(device_count):
         room = random.randint(1, 400)
-        patient = random.choice(name_list)
+        patient = names[i]
         active_devices.append(Device('ivac', patient, room))
         active_devices.append(Device('monitor', patient, room))
         active_devices.append(Device('respirator', patient, room))
