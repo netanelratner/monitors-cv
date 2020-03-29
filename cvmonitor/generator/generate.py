@@ -344,7 +344,7 @@ def update_segments(image,segments,qrprefix='cvmonitor'):
     if detected_qrcode is None:
         raise RuntimeError("Could not detect QR")
     data = detected_qrcode.data.decode()
-    wraped, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
+    warped, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
     segments = copy.deepcopy(segments)
     for i,s in enumerate(segments):
         V = np.array([
@@ -357,10 +357,10 @@ def update_segments(image,segments,qrprefix='cvmonitor'):
         for r in range(4):
             U[:,r]/=U[-1,r]
         s['left'] = int(min(U[0,0:2]))
-        s['right'] = min(int(max(U[0,2:])),wraped.shape[1])
+        s['right'] = min(int(max(U[0,2:])),warped.shape[1])
         s['top'] = int(min(U[1,0],U[1,2]))
-        s['bottom'] = min(int(max(U[1,1],U[1,3])),wraped.shape[0])
-    return wraped, segments
+        s['bottom'] = min(int(max(U[1,1],U[1,3])),warped.shape[0])
+    return warped, segments
 
 def draw_segements(image, segments,colors):
     for s,c in zip(segments,colors):
