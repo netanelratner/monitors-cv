@@ -17,7 +17,7 @@ from .ocr import monitor_ocr
 from prometheus_client import Summary
 import pytesseract
 from pylab import imshow, show
-
+np.set_printoptions(precision=3)
 
 def generate_pdf(pdf_file,title):
     nrows = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',6))
@@ -78,7 +78,7 @@ def order_points(pts):
     bottom_right = [int(x) for x in [0,1, 2,3,] if x not in [top_left, bottom_left , top_right]][0]
     return pts[[top_left, top_right, bottom_right, bottom_left],:]
 
-def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
+def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 50.0):
     """
     Aling image by qrcode, normalize by qrcode size
     """
@@ -86,7 +86,7 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
     width = image.shape[1]
     height = image.shape[0]
-
+    
     # Do we need to rotate the image?
     y_mean = np.mean(src_pts[:,1])
     flip_y = y_mean > height//2
@@ -94,14 +94,17 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     if flip_y:
         R1 = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),180,1)
         src_pts = (R1 @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        
         image = cv2.rotate(image,cv2.ROTATE_180)
         R1 = np.concatenate((R1,[[0,0,1]]))
-
+    
+    
     x_mean = np.mean(src_pts[:,0])
     flip_x = x_mean > width//2
     R2 = np.eye(3)
+    
     if flip_x:
-        R2 = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),-90,1)
+        R2 = np.array([[0, 1, 0],[-1,0.0, width ]])
         src_pts = (R2 @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
         image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
         R2 = np.concatenate((R2,[[0,0,1]]))
@@ -110,7 +113,7 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
 
     src_pts=order_points(src_pts).astype(np.float32)
 
-    tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
+    tgt_pts = np.array([[boundery,boundery],[qrsize+boundery,boundery],[qrsize+boundery,qrsize+boundery],[boundery,qrsize+boundery]],np.float32)
     shape_pts = np.array([[0,0],[width,0],[width,height],[0.0,height]],np.float32)
     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
     res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
@@ -216,7 +219,7 @@ class ComputerVision:
 
             qrprefix = str(os.environ.get('CVMONITOR_QR_PREFIX','cvmonitor'))
             qrsize = int(os.environ.get('CVMONITOR_QR_TARGET_SIZE',100))
-            boundery = float(os.environ.get('CVMONITOR_QR_BOUNDERY_SIZE',20))
+            boundery = float(os.environ.get('CVMONITOR_QR_BOUNDERY_SIZE',50))
             detected_qrcode = find_qrcode(image, qrprefix)
             if detected_qrcode is None:
                 abort(400, "Could not find the qr code to aling the image")

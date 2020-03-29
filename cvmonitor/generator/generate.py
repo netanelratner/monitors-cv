@@ -344,7 +344,7 @@ def update_segments(image,segments,qrprefix='cvmonitor'):
     if detected_qrcode is None:
         raise RuntimeError("Could not detect QR")
     data = detected_qrcode.data.decode()
-    wraped, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+    wraped, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
     segments = copy.deepcopy(segments)
     for i,s in enumerate(segments):
         V = np.array([
@@ -396,7 +396,7 @@ def send_picture(url: str, device: Device):
             if detected_qrcode is None:
                 raise RuntimeError("Could not detect QR")
             data = detected_qrcode.data.decode()
-            image, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+            image, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
             segments = device.segments
             # FIXME: assume that image is in RGB (not BGR). if not - should fix code in monitor_ocr.detect()
             texts = model_ocr.ocr(segments, image, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
