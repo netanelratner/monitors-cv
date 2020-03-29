@@ -7,6 +7,7 @@ ADD requirements.txt /opt/app/requirements.txt
 RUN pip install -r /opt/app/requirements.txt --no-cache-dir
 COPY . /opt/app
 COPY .git /opt/app/.git
+WORKDIR /opt/app/
 RUN pip install -e /opt/app --no-cache-dir
 RUN pytest /opt/app
 CMD cvmonitor
