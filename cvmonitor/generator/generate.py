@@ -21,7 +21,7 @@ import datetime
 import argparse
 QRSIZE=100
 
-SEND_TO_SERVER = False
+SEND_TO_SERVER = True
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
@@ -460,8 +460,13 @@ def main():
 if __name__ == "__main__":
     parser =  argparse.ArgumentParser()
     parser.add_argument('--no_send',action='store_true',help='dont send to server just create images')
+    parser.add_argument('--send',action='store_true',help='dont send to server just create images')
     args = parser.parse_args()
-    if args.no_send:
-        SEND_TO_SERVER=False
+    if args.no_send!=args.send:
+        if args.no_send:
+            SEND_TO_SERVER=False
+        if args.send:
+            SEND_TO_SERVER=True
+
     random.seed(0)
     main()
