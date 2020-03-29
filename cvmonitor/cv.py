@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
 from prometheus_client import Summary
 import pytesseract
-
+from pylab import imshow, show
 
 
 def generate_pdf(pdf_file,title):
@@ -69,24 +69,37 @@ def order_points(pts):
     """
     order such that [top-left,top-right,bottom-right,bottom-left]
     """
-    rect = np.zeros((4, 2), dtype = "float32")
-    s = pts.sum(axis = 1)
-    rect[0] = pts[np.argmin(s)]
-    rect[2] = pts[np.argmax(s)]
-    diff = np.diff(pts, axis = 1)
-    rect[1] = pts[np.argmin(diff)]
-    rect[3] = pts[np.argmax(diff)]
-    return rect
-
+    # find which points are the topmost points
+    by_top = np.argsort(pts[:,1].copy())
+    by_left = np.argsort(pts[:,0].copy())
+    top_left = [int(x) for x in by_top[:2] if x in by_left[:2]][0]
+    bottom_left = [int(x) for x in by_left if x != top_left][0]
+    top_right = [int(x) for x in by_top if x != top_left][0]
+    bottom_right = [int(x) for x in [0,1, 2,3,] if x not in [top_left, bottom_left , top_right]][0]
+    return pts[[top_left, top_right, bottom_right, bottom_left],:]
 
 def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     """
     Aling image by qrcode, normalize by qrcode size
     """
-    tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
-    shape_pts = np.array([[0,0],[image.shape[1],0],[image.shape[1],image.shape[0]],[0.0,image.shape[0]]],np.float32)
+    
     src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
-    src_pts=order_points(src_pts)
+    width = image.shape[1]
+    height = image.shape[0]
+
+
+    # Do we need to rotate the image?
+    y_mean = np.mean(src_pts[1,:])
+    flip_y = y_mean > height//2
+    R = None
+    if flip_y:
+        R = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),180,1)
+        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        image = cv2.rotate(image,cv2.ROTATE_180)
+    src_pts=order_points(src_pts).astype(np.float32)
+
+    tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
+    shape_pts = np.array([[0,0],[width,0],[width,height],[0.0,height]],np.float32)
     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
     res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
     for r in range(4):
@@ -94,7 +107,9 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 20.0):
     width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res[0,:])))
     height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
     warped = cv2.warpPerspective(image, M,(width,height))
-    return warped
+    if flip_y:
+        M = M @ np.concatenate((R,[[0,0,1]]))
+    return warped, M
 
 def find_qrcode(image, prefix):
     if len(image.shape)==3:
@@ -196,7 +211,7 @@ class ComputerVision:
                 abort(400, "Could not find the qr code to aling the image")
             data = detected_qrcode.data.decode()
 
-            aligned_image = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
+            aligned_image, _ = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
             b = io.BytesIO()
             imageio.imwrite(b, aligned_image, format='jpeg')
             b.seek(0)

@@ -62,11 +62,25 @@ def test_find_qrcode():
 def test_align_image1():
     image = imageio.imread(os.path.dirname(__file__)+'/data/barcode_monitor.jpg')
     qrcode = cv.find_qrcode(image,'')
-    wrapped = cv.align_by_qrcode(image,qrcode)
+    wrapped,M = cv.align_by_qrcode(image,qrcode)
     assert wrapped.shape[0]>0
 
 def test_align_image2():
     image = imageio.imread(os.path.dirname(__file__)+'/data/test.jpg')
     qrcode = cv.find_qrcode(image,'')
-    wrapped = cv.align_by_qrcode(image,qrcode)
+    wrapped,M = cv.align_by_qrcode(image,qrcode)
+    assert wrapped.shape[0]>0
+
+
+def test_align_rotate():
+    image = imageio.imread(os.path.dirname(__file__)+'/data/rotated.jpg')
+    qrcode = cv.find_qrcode(image,'')
+    wrapped, M = cv.align_by_qrcode(image,qrcode)
+    assert wrapped.shape[0]>0
+
+def test_align_flipped():
+    image = imageio.imread(os.path.dirname(__file__)+'/data/flipped.jpg')
+    qrcode = cv.find_qrcode(image,'')
+    wrapped, M = cv.align_by_qrcode(image,qrcode)
+
     assert wrapped.shape[0]>0

@@ -25,7 +25,8 @@ from pyzbar import pyzbar
 from matplotlib import pyplot as plt
 from matplotlib import animation
 from cvmonitor.ocr import monitor_ocr
-
+from cvmonitor import cv
+from pylab import imshow, show
 QRSIZE=100
 
 SEND_TO_SERVER = True
@@ -202,7 +203,7 @@ def get_qr_code(title):
     return img, text
 
 
-def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], x_start=200, y_start=200):
+def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], x_start=300, y_start=200):
     # size=np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
     size=np.array(cv2.getTextSize(text=str('CO'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
     y_step = size[1]+50
@@ -244,10 +245,18 @@ def change_values(values):
     return values
 
 def rotate_image(image, angle):
-    image_center = tuple(np.array(image.shape[1::-1]) / 2)
-    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    new_image = np.zeros([int(image.shape[0]*1.5),int(image.shape[1]*1.5),3],dtype=image.dtype)
+
+    new_image[
+        new_image.shape[0]//4:image.shape[0]+new_image.shape[0]//4,
+        new_image.shape[1]//4:image.shape[1]+new_image.shape[1]//4,
+        :] = image
+    shp = np.array(new_image.shape[1::-1])
+    sz = tuple([int(x) for x in (shp)])
+    image_center = tuple([int(x) for x in (shp//2)])
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle ,1)
     result = cv2.warpAffine(
-        image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+        new_image, rot_mat, sz, flags=cv2.INTER_LINEAR)
     return result
 
 
@@ -329,29 +338,13 @@ def find_qrcode(image, prefix):
             break
     return detected_qrcode
 
-def align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20.0):
-    """
-    Aling image by qrcode, normalize by qrcode size
-    """
-    tgt_pts = np.array([[boundery,boundery],[qrsize,boundery],[qrsize,qrsize],[boundery,qrsize]],np.float32)
-    shape_pts = np.array([[0,0],[image.shape[1],0],[image.shape[1],image.shape[0]],[0.0,image.shape[0]]],np.float32)
-    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
-    src_pts=order_points(src_pts)
-    M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
-    res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
-    for r in range(4):
-        res[:,r]/=res[-1,r]
-    width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res [0,:])))
-    height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
-    warped = cv2.warpPerspective(image, M,(width,height))
-    return warped, M
 
 def update_segments(image,segments,qrprefix='cvmonitor'):
     detected_qrcode = find_qrcode(image, qrprefix)
     if detected_qrcode is None:
         raise RuntimeError("Could not detect QR")
     data = detected_qrcode.data.decode()
-    wraped, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+    wraped, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
     segments = copy.deepcopy(segments)
     for i,s in enumerate(segments):
         V = np.array([
@@ -403,7 +396,7 @@ def send_picture(url: str, device: Device):
             if detected_qrcode is None:
                 raise RuntimeError("Could not detect QR")
             data = detected_qrcode.data.decode()
-            image, M = align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
+            image, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 20)
             segments = device.segments
             # FIXME: assume that image is in RGB (not BGR). if not - should fix code in monitor_ocr.detect()
             texts = model_ocr.ocr(segments, image, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
@@ -465,13 +458,21 @@ def generate_data(url):
 
 def simulate_monitor(url):
     matplotlib.use('tkAgg')
+    #matplotlib.use("Qt4agg")
     devices: List[Device] = fill_rooms(1)
     device = devices[random.randint(0,2)]
     image = device.picture()
     fig = pylab.figure(figsize=[12,10])
+    plt.gca().set_title(device.qrtext)
     pylab.ioff()
     imobg = pylab.imshow(image)
     print(device.values)
+    print(f'Device: {device.qrtext}')
+    def press(event):
+        print(event.key)
+        if event.key == 'q':
+            exit(-1)
+    fig.canvas.mpl_connect('key_press_event', press)
     while True:
         image = device.picture()
         pylab.imshow(image)
