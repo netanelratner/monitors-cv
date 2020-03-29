@@ -242,6 +242,9 @@ def change_values(values):
     for i in range(len(values)):
         if str(values[i]['value']).isnumeric():
             values[i]['value'] += random.randint(-3, 3)
+            if random.randint(0,1)==0:
+                values[i]['value'] +=0.1
+            values[i]['value'] = max(values[i]['value'],0)
     return values
 
 def rotate_image(image, angle):
