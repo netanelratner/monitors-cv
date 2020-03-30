@@ -19,9 +19,11 @@ import pytesseract
 from pylab import imshow, show
 np.set_printoptions(precision=3)
 
-def generate_pdf(pdf_file,title):
-    nrows = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',6))
-    ncols = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',4))
+def generate_pdf(pdf_file,title,ncols,nrows):
+    if not nrows:
+        nrows = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',6))
+    if not ncols:
+        ncols = int(os.environ.get('CVMOINTOR_QR_PDF_COLS',4))
     with  PdfPages(pdf_file) as pdf:
         index = 0
         fig, axarr = plt.subplots(nrows,ncols, figsize= [8 , 11])
@@ -313,17 +315,37 @@ class ComputerVision:
               schema:
                   type: string
                   required: true
+                  default: cvmonitor
+            - in: query
+              name: width
+              schema:
+                  type: number
+                  required: false
+            - in: query
+              name: height
+              schema:
+                  type: number
+                  required: false
             responses:
               '200':
                 descritption: pdf of results
                 content:
                     application/pdf:
             """
+            try:
+                width = int(request.args.get('width'))
+            except:
+                width = None
+            try:
+                height = int(request.args.get('height'))
+            except:
+                height = None
+
             headers = {
                 "Content-Type":'application/pdf',
                 'Content-Disposition': 'attachment; filename="random-qr.pdf"'
             }
             pdf_buffer = io.BytesIO()
-            generate_pdf(pdf_buffer,title)
+            generate_pdf(pdf_buffer,title,width,height)
             pdf_buffer.seek(0)
             return pdf_buffer.read(), 200, headers
