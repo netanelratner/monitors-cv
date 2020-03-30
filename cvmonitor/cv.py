@@ -18,192 +18,9 @@ from .ocr import monitor_ocr
 from prometheus_client import Summary
 import pytesseract
 from pylab import imshow, show
+from .qr import generate_pdf, find_qrcode, read_codes
+from image_align import get_oriented_image, align_by_qrcode
 np.set_printoptions(precision=3)
-
-def generate_pdf(pdf_file,title,ncols,nrows):
-    if not nrows:
-        nrows = int(os.environ.get('CVMOINTOR_QR_PDF_ROWS',6))
-    if not ncols:
-        ncols = int(os.environ.get('CVMOINTOR_QR_PDF_COLS',4))
-    with  PdfPages(pdf_file) as pdf:
-        index = 0
-        fig, axarr = plt.subplots(nrows,ncols, figsize= [8 , 11])
-        fig.tight_layout(pad=4, h_pad=3, w_pad=2)
-        for y in range(nrows):
-            for x in range(ncols):
-                index+=1
-                qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L)
-                uuid = uuid4().hex
-                text = f'cvmonitors-{title}-{uuid}'
-                qr.add_data(text)
-                qr.make(fit=True)
-                img = qr.make_image(fill_color='black', back_color='white')
-                axarr[y,x].set_title(f'{title}\n{uuid[:16]}', fontsize=8)
-                axarr[y,x].set_xticks([])
-                axarr[y,x].set_yticks([])
-                axarr[y,x].set_yticklabels([])
-                axarr[y,x].set_xticklabels([])
-                axarr[y,x].imshow(img,cmap='gray')
-
-
-        pdf.savefig(fig)
-
-
-def read_codes(image):
-    """
-    read barcodes in an image
-    """
-    decodedObjects = pyzbar.decode(image)
-    codes = []
-    for obj in decodedObjects:
-        try:
-            codes.append({
-                'data': obj.data.decode(),
-                'top': obj.rect.top,
-                'left': obj.rect.left,
-                'bottom': obj.rect.top + obj.rect.height,
-                'right': obj.rect.left + obj.rect.width,
-                'type': obj.type,
-            })
-        except:
-            continue
-    return codes
-
-def order_points(pts):
-    """
-    order such that [top-left,top-right,bottom-right,bottom-left]
-    """
-    # find which points are the topmost points
-    by_top = np.argsort(pts[:,1].copy())
-    by_left = np.argsort(pts[:,0].copy())
-    top_left = [int(x) for x in by_top[:2] if x in by_left[:2]][0]
-    bottom_left = [int(x) for x in by_left if x != top_left][0]
-    top_right = [int(x) for x in by_top if x != top_left][0]
-    bottom_right = [int(x) for x in [0,1, 2,3,] if x not in [top_left, bottom_left , top_right]][0]
-    return pts[[top_left, top_right, bottom_right, bottom_left],:]
-
-
-def rotmat(deg,w,h):
-    r = math.radians(deg)
-    return np.array([
-        [ math.cos(r), -math.sin(r), h],
-        [ math.sin(r), math.cos(r), w]
-    ],dtype=np.float32)
-
-# https://stackoverflow.com/questions/22041699/rotate-an-image-without-cropping-in-opencv-in-c
-
-def rotate_image(height, width, angle):
-    image_center = (width / 2, height / 2)
-
-    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1)
-
-    radians = math.radians(angle)
-    sin = math.sin(radians)
-    cos = math.cos(radians)
-    bound_w = int((height * abs(sin)) + (width * abs(cos)))
-    bound_h = int((height * abs(cos)) + (width * abs(sin)))
-
-    rotation_mat[0, 2] += ((bound_w / 2) - image_center[0])
-    rotation_mat[1, 2] += ((bound_h / 2) - image_center[1])
-
-    return rotation_mat
-
-def rotate_by_qr_code(image, detected_qrcode):
-    """
-    Aling image by qrcode, normalize by qrcode size
-    """
-    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
-    width = image.shape[1]
-    height = image.shape[0]
-    
-    # Do we need to rotate the image?
-    y_mean = np.mean(src_pts[:,1])
-    flip_y = y_mean > height//2
-    
-    x_mean = np.mean(src_pts[:,0])
-    flip_x = x_mean > width//2
-
-    R = np.eye(3)
-    if flip_x and flip_y:
-        image = cv2.rotate(image,cv2.ROTATE_180)
-
-    if flip_y and not flip_x:
-        image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
-
-    if flip_x and not flip_y:
-        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
-    print(image.shape)
-    return image
-
-def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 50.0):
-    """
-    Aling image by qrcode, normalize by qrcode size
-    """
-    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
-    width = image.shape[1]
-    height = image.shape[0]
-    
-    # Do we need to rotate the image?
-    y_mean = np.mean(src_pts[:,1])
-    flip_y = y_mean > height//2
-    
-    x_mean = np.mean(src_pts[:,0])
-    flip_x = x_mean > width//2
-
-    R = np.eye(3)
-    if flip_x and flip_y:
-        R = rotate_image(height, width, 180)
-        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
-        image = cv2.rotate(image,cv2.ROTATE_180)
-        R = np.concatenate((R,[[0,0,1]]))
-
-    if flip_y and not flip_x:
-        R = rotate_image(height, width, -90)
-        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
-        image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
-        R = np.concatenate((R,[[0,0,1]]))
-
-    if flip_x and not flip_y:
-        R = rotate_image(height, width, 90)
-        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
-        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
-        R = np.concatenate((R,[[0,0,1]]))
-    
-
-    src_pts=order_points(src_pts).astype(np.float32)
-    
-    tgt_pts = np.array([[boundery,boundery],[qrsize+boundery,boundery],[qrsize+boundery,qrsize+boundery],[boundery,qrsize+boundery]],np.float32)
-    width = image.shape[1]
-    height = image.shape[0]
-    shape_pts = np.array([[0,0],[width,0],[width,height],[0.0,height]],np.float32)
-    M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
-    res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
-    for r in range(4):
-        res[:,r]/=res[-1,r]
-    width = int(np.ceil(max(res[0,:]))) #+ int(np.floor(min(res[0,:])))
-    height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
-    warped = cv2.warpPerspective(image, M,(width,height))
-    M = M @ R
-    return warped, M
-
-def find_qrcode(image, prefix):
-    if len(image.shape)==3:
-        image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-    decodedObjects = pyzbar.decode(image)
-    if not decodedObjects:
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
-        image = clahe.apply(image)
-        decodedObjects = pyzbar.decode(image)
-
-    detected_qrcode = None
-    for obj in decodedObjects:
-        text = obj.data.decode()
-        if text.startswith(prefix):
-            detected_qrcode = obj
-            break
-    return detected_qrcode
-
-
 
 class ComputerVision:
 
@@ -277,6 +94,10 @@ class ComputerVision:
                         format: binary
 
             """
+            imdata= io.BytesIO(request.data())
+                    
+            imdata.seek(0)
+            
             image = np.asarray(imageio.imread(request.data))
 
             if os.environ.get('CVMONITOR_SAVE_BEFORE_ALIGN')=='TRUE':
