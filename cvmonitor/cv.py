@@ -16,20 +16,21 @@ import pytesseract
 from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
+
 np.set_printoptions(precision=3)
 
-class ComputerVision:
 
+class ComputerVision:
     def __init__(self):
-        self.blueprint = Blueprint('cv', __name__)
+        self.blueprint = Blueprint("cv", __name__)
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
 
-        @self.blueprint.route('/ping/')
+        @self.blueprint.route("/ping/")
         def ping():
-            return 'pong cv'
+            return "pong cv"
 
-        @self.blueprint.route('/detect_codes', methods=['POST'])
+        @self.blueprint.route("/detect_codes", methods=["POST"])
         def detect_codes():
             """
             Get QR or barcodes in an image
@@ -64,9 +65,9 @@ class ComputerVision:
             """
             image = np.asarray(imageio.imread(request.data))
             codes = read_codes(image)
-            return json.dumps(codes), 200, {'content-type':'application/json'}
+            return json.dumps(codes), 200, {"content-type": "application/json"}
 
-        @self.blueprint.route('/align_image', methods=['POST'])
+        @self.blueprint.route("/align_image", methods=["POST"])
         def align_image():
             """
             Given a jpeg image with that containes the  QR code, use that QR code to align the image
@@ -88,42 +89,51 @@ class ComputerVision:
                         format: binary
 
             """
-            use_exif = os.environ.get('CVMONITOR_ORIENT_BY_EXIF','TRUE')=='TRUE'
-            use_qr = os.environ.get('CVMONITOR_ORIENT_BY_QR','FALSE')=='TRUE'
-            qrprefix = str(os.environ.get('CVMONITOR_QR_PREFIX','cvmonitor'))
-            qrsize = int(os.environ.get('CVMONITOR_QR_TARGET_SIZE',100))
-            boundery = float(os.environ.get('CVMONITOR_QR_BOUNDERY_SIZE',50))
-            align_image_by_qr = os.environ.get('CVMONITOR_SKIP_ALIGN','TRUE')=='FALSE'
-            save_before_align = os.environ.get('CVMONITOR_SAVE_BEFORE_ALIGN')=='TRUE'
-            save_after_align = os.environ.get('CVMONITOR_SAVE_AFTER_ALIGN')=='TRUE'
+            use_exif = os.environ.get("CVMONITOR_ORIENT_BY_EXIF", "TRUE") == "TRUE"
+            use_qr = os.environ.get("CVMONITOR_ORIENT_BY_QR", "FALSE") == "TRUE"
+            qrprefix = str(os.environ.get("CVMONITOR_QR_PREFIX", "cvmonitor"))
+            qrsize = int(os.environ.get("CVMONITOR_QR_TARGET_SIZE", 100))
+            boundery = float(os.environ.get("CVMONITOR_QR_BOUNDERY_SIZE", 50))
+            align_image_by_qr = (
+                os.environ.get("CVMONITOR_SKIP_ALIGN", "TRUE") == "FALSE"
+            )
+            save_before_align = os.environ.get("CVMONITOR_SAVE_BEFORE_ALIGN") == "TRUE"
+            save_after_align = os.environ.get("CVMONITOR_SAVE_AFTER_ALIGN") == "TRUE"
 
             imdata = io.BytesIO(request.data)
-            image, detected_qrcode, _ = get_oriented_image(imdata, use_exif=use_exif, use_qr=use_qr)
+            image, detected_qrcode, _ = get_oriented_image(
+                imdata, use_exif=use_exif, use_qr=use_qr
+            )
 
-            headers =  {'content-type':'image/jpeg'}
+            headers = {"content-type": "image/jpeg"}
             if save_before_align:
                 imdata.seek(0)
-                with open('original_image.jpg','wb') as f:
+                with open("original_image.jpg", "wb") as f:
                     f.write(imdata)
 
             if detected_qrcode is None:
                 if align_image_by_qr:
-                    abort(400, "Could not align the image by qr code, no such code detected")
+                    abort(
+                        400,
+                        "Could not align the image by qr code, no such code detected",
+                    )
             else:
-                headers['X-MONITOR-ID']= detected_qrcode.data.decode()
+                headers["X-MONITOR-ID"] = detected_qrcode.data.decode()
 
             if align_image_by_qr:
-                image, _ = align_by_qrcode(image, detected_qrcode, qrsize, boundery, qrprefix)
+                image, _ = align_by_qrcode(
+                    image, detected_qrcode, qrsize, boundery, qrprefix
+                )
 
             if save_after_align:
-                imageio.imwrite('aligned_image.jpg',image)
+                imageio.imwrite("aligned_image.jpg", image)
 
             b = io.BytesIO()
-            imageio.imwrite(b, image, format='jpeg')
+            imageio.imwrite(b, image, format="jpeg")
             b.seek(0)
             return b.read(), 200, headers
 
-        @self.blueprint.route('/run_ocr', methods=['POST'])
+        @self.blueprint.route("/run_ocr", methods=["POST"])
         def run_ocr():
             """
             Run ocr on an image
@@ -171,29 +181,31 @@ class ComputerVision:
                                 value:
                                     type: string
             """
-            threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD","0.2"))
+            threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD", "0.2"))
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
             if not self.model_ocr:
-                abort(500,'NN Model not found, could not run ocr')
-            
-            data = request.json
-            assert 'image' in data
-            image = np.asarray(imageio.imread(base64.decodebytes(data['image'].encode())))
-            if not data.get('segments'):
-                return json.dumps([]), 200, {'content-type':'application/json'}
+                abort(500, "NN Model not found, could not run ocr")
 
-            segments = data['segments']
+            data = request.json
+            assert "image" in data
+            image = np.asarray(
+                imageio.imread(base64.decodebytes(data["image"].encode()))
+            )
+            if not data.get("segments"):
+                return json.dumps([]), 200, {"content-type": "application/json"}
+
+            segments = data["segments"]
             if len(segments) == 0:
-                return json.dumps([]), 200, {'content-type':'application/json'}
+                return json.dumps([]), 200, {"content-type": "application/json"}
             texts = self.model_ocr.ocr(segments, image, threshold)
             results = []
 
-            for s,t in zip(segments,texts):
-                results.append({'segment_name': s['name'], 'value':t})
-            return json.dumps(results), 200, {'content-type':'application/json'}
+            for s, t in zip(segments, texts):
+                results.append({"segment_name": s["name"], "value": t})
+            return json.dumps(results), 200, {"content-type": "application/json"}
 
-        @self.blueprint.route('/qr/<title>', methods=['GET'])
+        @self.blueprint.route("/qr/<title>", methods=["GET"])
         def qr(title):
             """
             Generate pdf of qr codes, after the /qr/ put title for
@@ -226,19 +238,19 @@ class ComputerVision:
                     application/pdf:
             """
             try:
-                width = int(request.args.get('width'))
+                width = int(request.args.get("width"))
             except:
                 width = None
             try:
-                height = int(request.args.get('height'))
+                height = int(request.args.get("height"))
             except:
                 height = None
 
             headers = {
-                "Content-Type":'application/pdf',
-                'Content-Disposition': 'attachment; filename="random-qr.pdf"'
+                "Content-Type": "application/pdf",
+                "Content-Disposition": 'attachment; filename="random-qr.pdf"',
             }
             pdf_buffer = io.BytesIO()
-            generate_pdf(pdf_buffer,title,width,height)
+            generate_pdf(pdf_buffer, title, width, height)
             pdf_buffer.seek(0)
             return pdf_buffer.read(), 200, headers
