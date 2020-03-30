@@ -117,9 +117,16 @@ def test_align_another():
     warpped, M = cv.align_by_qrcode(image, qrcode)
     assert warpped.shape[0] > 0
 
-def test_printed():
+def test_printed_qr():
     image = imageio.imread(os.path.dirname(__file__)+'/data/printed.jpg')
     qrcode = cv.find_qrcode(image, '')
     warpped, M = cv.align_by_qrcode(image, qrcode)
     
+    assert warpped.shape[0] > 0
+
+def test_generated_qr():
+    image = imageio.imread(os.path.dirname(__file__)+'/data/generated_from_pdf.jpg')
+    qrcode = cv.find_qrcode(image, '')
+    warpped, M = cv.align_by_qrcode(image, qrcode)
+    assert 'dba7b418e0ef450c' in qrcode.data.decode()
     assert warpped.shape[0] > 0

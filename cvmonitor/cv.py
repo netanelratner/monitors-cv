@@ -32,11 +32,12 @@ def generate_pdf(pdf_file,title,ncols,nrows):
             for x in range(ncols):
                 index+=1
                 qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L)
-                text = f'cvmonitors-{title}-{uuid4().hex[:16]}'
+                uuid = uuid4().hex
+                text = f'cvmonitors-{title}-{uuid}'
                 qr.add_data(text)
                 qr.make(fit=True)
                 img = qr.make_image(fill_color='black', back_color='white')
-                axarr[y,x].set_title(f'{title}\n{uuid4().hex[:16]}', fontsize=8)
+                axarr[y,x].set_title(f'{title}\n{uuid[:16]}', fontsize=8)
                 axarr[y,x].set_xticks([])
                 axarr[y,x].set_yticks([])
                 axarr[y,x].set_yticklabels([])
