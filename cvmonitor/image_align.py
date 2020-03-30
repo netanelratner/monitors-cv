@@ -110,50 +110,25 @@ def rotate_image(image, rotation):
         image = cv2.rotate(image, cv2.ROTATE_180)
     return image
 
-
-def rotate_by_qr_code(image, detected_qrcode):
-    """
-    Aling image by qrcode, normalize by qrcode size
-    """
-    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
-    width = image.shape[1]
-    height = image.shape[0]
-    
-    # Do we need to rotate the image?
-    y_mean = np.mean(src_pts[:,1])
-    flip_y = y_mean > height//2
-    
-    x_mean = np.mean(src_pts[:,0])
-    flip_x = x_mean > width//2
-
-    R = np.eye(3)
-    if flip_x and flip_y:
-        image = cv2.rotate(image,cv2.ROTATE_180)
-
-    if flip_y and not flip_x:
-        image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
-
-    if flip_x and not flip_y:
-        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
-    print(image.shape)
     return image
 
 
 
-def get_oriented_image(im_file, use_qr=False, detected_qrcode=None, qrprefix=''):
+def get_oriented_image(im_file, use_exif=True, use_qr=False, detected_qrcode=None, qrprefix=''):
     """
     Orient an image by it's exif data or by qr code that is expected to be on
     the image top-left side.
     :return: the rotated image, qrcode *in original cooordinates*, rotation in angles
     """
+
     # try exif
     im_file, rotation  = get_exif_rotation(im_file)
 
     image = imageio.imread(im_file)
 
-    # if no oritenation in exif, maybe try qr code:
+    # if no oritenation in exif or don't use exif, maybe try qr code:
     detected_qrcode = None
-    if rotation is None and use_qr:
+    if rotation is None and use_qr or not use_exif:
         rotation, detected_qrcode = get_qr_rotation(image, detected_qrcode, qrprefix)
 
     image = rotate_image(image, rotation)
@@ -167,6 +142,7 @@ def align_by_qrcode(image : np.ndarray, detected_qrcode, qrsize=100, boundery = 
     Aling image by qrcode, normalize by qrcode size.
     Assumption - the image orietnation is already correct, if there is a qr code it's on the top
     left side of the image.
+    WARNING: Aligining an image by a single qr code is pretty unstable. be carefull with this.
     """
 
 
