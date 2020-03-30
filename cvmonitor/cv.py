@@ -288,15 +288,14 @@ class ComputerVision:
             if detected_qrcode is None:
                 abort(400, "Could not find the qr code to aling the image")
             data = detected_qrcode.data.decode()
-            if os.environ.get('CVMONITOR_SKIP_ALIGN')=='TRUE':
-                return request.data, 200, {'content-type':'image/jpeg','X-MONITOR-ID': data}
             image = rotate_by_qr_code(image, detected_qrcode)
             detected_qrcode = find_qrcode(image, qrprefix)
-            aligned_image, _ = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
+            if not (os.environ.get('CVMONITOR_SKIP_ALIGN')=='TRUE'):
+                image, _ = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
             if os.environ.get('CVMONITOR_SAVE_AFTER_ALIGN')=='TRUE':
-                imageio.imwrite('aligned_image.jpg',aligned_image)
+                imageio.imwrite('aligned_image.jpg',image)
             b = io.BytesIO()
-            imageio.imwrite(b, aligned_image, format='jpeg')
+            imageio.imwrite(b, image, format='jpeg')
             b.seek(0)
             return b.read(), 200, {'content-type':'image/jpeg','X-MONITOR-ID': data}
 
