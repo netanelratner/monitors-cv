@@ -1,0 +1,25 @@
+name: Docker Image CI
+
+on:
+  push:
+    tags:
+      - '*'
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      - uses: actions/checkout@v1
+      - uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          repository: brainoom/cvmonitor
+          tags: ${{ steps.get_version.outputs.VERSION }}
+          tag_with_ref: true
+
