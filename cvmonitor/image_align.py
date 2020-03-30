@@ -1,17 +1,11 @@
 from flask import Flask, Blueprint, request, abort, Response
 import math
 import cv2
-import logging
 import imageio
 import ujson as json
 import numpy as np
 from pyzbar import pyzbar
-import io
-import os
-import base64
-import time
 import qrcode
-from uuid import uuid4
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
