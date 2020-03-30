@@ -60,7 +60,7 @@ def test_ocr(client):
 
 
 def test_pdf_generate():
-    cv.generate_pdf('test.pdf', 'something')
+    cv.generate_pdf('test.pdf', 'something',4,6)
 
 
 def test_find_qrcode():
@@ -110,7 +110,6 @@ def test_align_90deg_small():
     qrcode = cv.find_qrcode(image, '')
     warpped, M = cv.align_by_qrcode(image, qrcode)
     assert warpped.shape[0] > 0
-    import pdb; pdb.set_trace()
 
 def test_align_another():
     image = imageio.imread(os.path.dirname(__file__)+'/data/another.jpg')

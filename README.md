@@ -79,3 +79,16 @@ pytset
 # maybe install matplotlib some packages for easier development
 pip install matplotlib pdbpp 
 ```
+
+
+## What about tesseract?
+1. Make sure to manually install the legacy data. It works better:
+
+https://github.com/tesseract-ocr/tessdata/blob/master/osd.traineddata
+https://github.com/tesseract-ocr/tessdata/blob/master/eng.traineddata
+
+
+2. The follwing setting, may work with good enough bounding box:
+tesseract --tessdata-dir /usr/local/share/tessdata/ -l eng --psm 12 --oem 2 cvmonitors-ivac-97fd0652c8fa4893.jpg cvmonitors-ivac-97fd0652c8fa4893.jpg.txt
+Let's try it as some point.
+I have to manuall put the langauge files in `/usr/local/share/tessdata/` which seems wrong to me.

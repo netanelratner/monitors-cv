@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import math
 import argparse
 import copy
 import datetime
@@ -244,6 +245,8 @@ def change_values(values):
             values[i]['value'] += random.randint(-3, 3)
             if random.randint(0,1)==0:
                 values[i]['value'] +=0.1
+            else:
+                values[i]['value'] = math.floor(values[i]['value'])
             values[i]['value'] = max(values[i]['value'],0)
     return values
 
