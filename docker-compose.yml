@@ -13,9 +13,8 @@ services:
     restart: always 
     user: '1000'
     volumes:
-      - ./compose/database/prom/prometheus.yml:/etc/prometheus/prometheus.yml 
-      - ./compose/database/prom/data/:/prometheus/
-    command: prom/prometheus
+      - ${PWD}/compose/database/prom/prometheus.yml:/etc/prometheus/prometheus.yml 
+      - ${PWD}/compose/database/prom/data/:/prometheus/
     depends_on:
       - mongo
   grafana:
@@ -24,12 +23,12 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./compose/database/grafana/data:/var/lib/grafana
+      - ${PWD}/compose/database/grafana/data:/var/lib/grafana
     depends_on:
       - prom
       - mongo
   cvbackend:
-    image: brainoom/cvmonitor
+    image: brainoom/cvmonitor:v0.3.4
     restart: always
     ports:
       - "8088:8088"
@@ -47,10 +46,17 @@ services:
     expose:
       - 80
     environment:
-      CVMONITOR_HOST: 10.0.0.4
-      DB_CONNECTION: mongodb://10.0.0.4/test
+      CVMONITOR_HOST: mongo
+      DB_CONNECTION: mongodb://mongo/test
     depends_on:
       - cvbackend
       - prom
       - mongo
       - grafana
+  frontend:
+      image: yehiyam/frontend:v0.0.1
+      restart: always
+      ports:
+        - "4200:4200"
+      depends_on: 
+        - backend
