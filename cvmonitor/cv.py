@@ -1,4 +1,5 @@
 from flask import Flask, Blueprint, request, abort, Response
+import math
 import cv2
 import logging
 import imageio
@@ -81,11 +82,36 @@ def order_points(pts):
     bottom_right = [int(x) for x in [0,1, 2,3,] if x not in [top_left, bottom_left , top_right]][0]
     return pts[[top_left, top_right, bottom_right, bottom_left],:]
 
-def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 50.0):
+
+def rotmat(deg,w,h):
+    r = math.radians(deg)
+    return np.array([
+        [ math.cos(r), -math.sin(r), h],
+        [ math.sin(r), math.cos(r), w]
+    ],dtype=np.float32)
+
+# https://stackoverflow.com/questions/22041699/rotate-an-image-without-cropping-in-opencv-in-c
+
+def rotate_image(height, width, angle):
+    image_center = (width / 2, height / 2)
+
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1)
+
+    radians = math.radians(angle)
+    sin = math.sin(radians)
+    cos = math.cos(radians)
+    bound_w = int((height * abs(sin)) + (width * abs(cos)))
+    bound_h = int((height * abs(cos)) + (width * abs(sin)))
+
+    rotation_mat[0, 2] += ((bound_w / 2) - image_center[0])
+    rotation_mat[1, 2] += ((bound_h / 2) - image_center[1])
+
+    return rotation_mat
+
+def rotate_by_qr_code(image, detected_qrcode):
     """
     Aling image by qrcode, normalize by qrcode size
     """
-    
     src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
     width = image.shape[1]
     height = image.shape[0]
@@ -93,30 +119,62 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 50.0):
     # Do we need to rotate the image?
     y_mean = np.mean(src_pts[:,1])
     flip_y = y_mean > height//2
-    R1 = np.eye(3)
-    if flip_y:
-        R1 = cv2.getRotationMatrix2D((image.shape[1]//2,image.shape[0]//2),180,1)
-        src_pts = (R1 @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
-        
-        image = cv2.rotate(image,cv2.ROTATE_180)
-        R1 = np.concatenate((R1,[[0,0,1]]))
-    
     
     x_mean = np.mean(src_pts[:,0])
     flip_x = x_mean > width//2
-    R2 = np.eye(3)
-    
-    if flip_x:
-        R2 = np.array([[0, 1, 0],[-1,0.0, width ]])
-        src_pts = (R2 @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
-        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
-        R2 = np.concatenate((R2,[[0,0,1]]))
-    R = R2 @ R1
 
+    R = np.eye(3)
+    if flip_x and flip_y:
+        image = cv2.rotate(image,cv2.ROTATE_180)
+
+    if flip_y and not flip_x:
+        image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
+
+    if flip_x and not flip_y:
+        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
+    print(image.shape)
+    return image
+
+def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 50.0):
+    """
+    Aling image by qrcode, normalize by qrcode size
+    """
+    src_pts= np.array([(p.x,p.y) for p in detected_qrcode.polygon],np.float32)
+    width = image.shape[1]
+    height = image.shape[0]
+    
+    # Do we need to rotate the image?
+    y_mean = np.mean(src_pts[:,1])
+    flip_y = y_mean > height//2
+    
+    x_mean = np.mean(src_pts[:,0])
+    flip_x = x_mean > width//2
+
+    R = np.eye(3)
+    if flip_x and flip_y:
+        R = rotate_image(height, width, 180)
+        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        image = cv2.rotate(image,cv2.ROTATE_180)
+        R = np.concatenate((R,[[0,0,1]]))
+
+    if flip_y and not flip_x:
+        R = rotate_image(height, width, -90)
+        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        image = cv2.rotate(image,cv2.ROTATE_90_CLOCKWISE)
+        R = np.concatenate((R,[[0,0,1]]))
+
+    if flip_x and not flip_y:
+        R = rotate_image(height, width, 90)
+        src_pts = (R @ np.concatenate([src_pts ,np.ones((4,1))],1).transpose()).transpose()
+        image = cv2.rotate(image,cv2.ROTATE_90_COUNTERCLOCKWISE)
+        R = np.concatenate((R,[[0,0,1]]))
+    
 
     src_pts=order_points(src_pts).astype(np.float32)
-
+    
     tgt_pts = np.array([[boundery,boundery],[qrsize+boundery,boundery],[qrsize+boundery,qrsize+boundery],[boundery,qrsize+boundery]],np.float32)
+    width = image.shape[1]
+    height = image.shape[0]
     shape_pts = np.array([[0,0],[width,0],[width,height],[0.0,height]],np.float32)
     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
     res = M @ np.concatenate([shape_pts,np.ones((4,1))],1).transpose()
@@ -232,7 +290,8 @@ class ComputerVision:
             if detected_qrcode is None:
                 abort(400, "Could not find the qr code to aling the image")
             data = detected_qrcode.data.decode()
-
+            image = rotate_by_qr_code(image, qrcode)
+            detected_qrcode = find_qrcode(image, qrprefix)
             aligned_image, _ = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
             if os.environ.get('CVMONITOR_SAVE_AFTER_ALIGN')=='TRUE':
                 imageio.imwrite('aligned_image.jpg',aligned_image)
