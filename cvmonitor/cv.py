@@ -220,6 +220,8 @@ class ComputerVision:
                 return request.data, 200, {'content-type':'image/jpeg','X-MONITOR-ID': data}
             image = np.asarray(imageio.imread(request.data))
 
+            if os.environ.get('CVMONITOR_SAVE_BEFORE_ALIGN')=='TRUE':
+                imageio.imwrite('original_image.jpg',image)
             qrprefix = str(os.environ.get('CVMONITOR_QR_PREFIX','cvmonitor'))
             qrsize = int(os.environ.get('CVMONITOR_QR_TARGET_SIZE',100))
             boundery = float(os.environ.get('CVMONITOR_QR_BOUNDERY_SIZE',50))
@@ -229,6 +231,8 @@ class ComputerVision:
             data = detected_qrcode.data.decode()
 
             aligned_image, _ = align_by_qrcode(image, detected_qrcode, qrsize=qrsize, boundery = boundery)
+            if os.environ.get('CVMONITOR_SAVE_AFTER_ALIGN')=='TRUE':
+                imageio.imwrite('aligned_image.jpg',aligned_image)
             b = io.BytesIO()
             imageio.imwrite(b, aligned_image, format='jpeg')
             b.seek(0)
