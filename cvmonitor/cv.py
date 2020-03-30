@@ -131,9 +131,12 @@ def align_by_qrcode(image, detected_qrcode, qrsize=100, boundery = 50.0):
 def find_qrcode(image, prefix):
     if len(image.shape)==3:
         image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-    #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
-    #image = clahe.apply(image)
     decodedObjects = pyzbar.decode(image)
+    if not decodedObjects:
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+        image = clahe.apply(image)
+        decodedObjects = pyzbar.decode(image)
+
     detected_qrcode = None
     for obj in decodedObjects:
         text = obj.data.decode()
