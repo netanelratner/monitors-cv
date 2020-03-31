@@ -298,7 +298,7 @@ class ModelOCR(object):
         # convert to grayscale
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY) # FIXME: check if RGB or BGR
 
-        # histogram equalizatoin
+        # histogram equalization
         clahe = cv2.createCLAHE(clipLimit=20.0, tileGridSize=(16,16))
         image = clahe.apply(image)
 

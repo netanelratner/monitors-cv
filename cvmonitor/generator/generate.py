@@ -30,7 +30,7 @@ from cvmonitor import cv
 from pylab import imshow, show
 QRSIZE=100
 
-SEND_TO_SERVER = True
+SEND_TO_SERVER = False
 name_list = [
 "בנימין נתניהו",
  "יולי אדלשטיין",
