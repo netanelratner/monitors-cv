@@ -1,5 +1,19 @@
 version: "3.3"
 services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.17
+    restart: always
+    environment: 
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+    ports:
+    - "5775:5775/udp"
+    - "6831:6831/udp"
+    - "6832:6832/udp"
+    - "5778:5778"
+    - "16686:16686"
+    - "14268:14268"
+    - "14250:14250"
+    - "9411:9411"
   mongo:
     image: mongo:4.2
     restart: always
@@ -40,6 +54,8 @@ services:
       CVMONITOR_QR_TARGET_SIZE: ${CVMONITOR_QR_TARGET_SIZE:-100}
       CVMONITOR_PORT: 8088
       CVMONITOR_QR_PREFIX: ${CVMONITOR_QR_TARGET_SIZE:-""}
+    depends_on: 
+      - jaeger
   backend:
     image: yehiyam/monitor-backend:v0.0.17
     restart: always
@@ -55,6 +71,7 @@ services:
       - prom
       - mongo
       - grafana
+      - jaeger
   frontend:
       image: registry.gitlab.com/or2511/covid-frontend:v0-0-1
       restart: always
