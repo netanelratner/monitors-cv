@@ -59,13 +59,12 @@ docker build .
 
 ## Develop:
 
-- Ubuntu 18.04 (16.04 may work)
+- Ubuntu 18.04 (16.04 & 19.10 may work)
 
-- 
 
 ```bash
 # Install Dependancies:
-sudo apt-get update && sudo apt-get install -yy  libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git-lfs
+sudo apt-get update && sudo apt-get install -yy wget libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git-lfs
 # Create a virutal enviornment (once)
 python3 -venv ~/envs/cvmonitors/
 # Clone the repo:
@@ -78,17 +77,16 @@ pip install -e .
 pytset
 # maybe install matplotlib some packages for easier development
 pip install matplotlib pdbpp 
+
+## For openvino (intel inference engine)
+sudo scripts/install-openvino.sh
+scripts/install-openvino-python.sh
 ```
 
-
 ## What about tesseract?
-1. Make sure to manually install the legacy data. It works better:
-
-https://github.com/tesseract-ocr/tessdata/blob/master/osd.traineddata
-https://github.com/tesseract-ocr/tessdata/blob/master/eng.traineddata
-
 
 2. The follwing setting, may work with good enough bounding box:
 tesseract --tessdata-dir /usr/local/share/tessdata/ -l eng --psm 12 --oem 2 cvmonitors-ivac-97fd0652c8fa4893.jpg cvmonitors-ivac-97fd0652c8fa4893.jpg.txt
 Let's try it as some point.
 I have to manuall put the langauge files in `/usr/local/share/tessdata/` which seems wrong to me.
+
