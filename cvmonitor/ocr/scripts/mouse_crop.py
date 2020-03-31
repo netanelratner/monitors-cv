@@ -58,7 +58,6 @@ def mouse_crop(image, num_of_crops, text='select next ROI'):
 
                 # display bbox on input image
                 cv2.rectangle(image, (x_start, y_start), (x_end, y_end), (255, 0, 0), 2)
-                # cv2.imshow("image", image)
 
     # declare image
     cv2.namedWindow("image")
@@ -91,22 +90,12 @@ def mouse_crop(image, num_of_crops, text='select next ROI'):
 
 
 if __name__ == '__main__':
-    image = cv2.imread('demo_image/Screenshot_20200322-140545_WhatsApp.jpg')
-    oriImage = image.copy()
-    R =mouse_crop(image)
-    a=1
-    # while True:
-    #     i = image.copy()
-    #
-    #     if not cropping:
-    #         cv2.imshow("image", image)
-    #
-    #     elif cropping:
-    #         cv2.rectangle(i, (x_start, y_start), (x_end, y_end), (255, 0, 0), 2)
-    #         cv2.imshow("image", i)
-    #         # return i;
-    #
-    #     cv2.waitKey(1)
-    #
-    # # close all open windows
-    # cv2.destroyAllWindows()
+
+
+    img_path = r'/home/moshes2/datasets/monitors/BneiZion2/1.tiff'
+
+    img = cv2.imread(img_path, -1)
+
+    roi, coordinates = mouse_crop(img, num_of_crops=3)
+
+    print('Done!')
