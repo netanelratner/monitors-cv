@@ -26,7 +26,7 @@ from argparse import ArgumentParser, SUPPRESS
 
 import cv2
 import numpy as np
-from openvino.inference_engine import IECore
+from openvino.inference_engine import IECore, IENetwork
 
 from .tracker import StaticIOUTracker
 from .visualizer import Visualizer
