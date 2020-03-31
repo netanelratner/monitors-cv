@@ -8,7 +8,7 @@ from flask import Flask, Blueprint, request
 from gevent.pywsgi import WSGIServer
 import gevent
 import os
-from .ocr.monitor_ocr import get_model
+from .ocr import get_models
 from .cv import ComputerVision
 from flasgger import Swagger
 from prometheus_flask_exporter import PrometheusMetrics
@@ -57,6 +57,6 @@ def main():
     host=os.environ.get('CVMONITOR_HOST','0.0.0.0')
     port=int(os.environ.get('CVMONITOR_PORT','8088'))
     logging.info('checking if model exists:')
-    get_model()
+    get_models()
     logging.info(f'serving on http://{host}:{port}/apidocs')
     WSGIServer((host, port), server.app).serve_forever()
