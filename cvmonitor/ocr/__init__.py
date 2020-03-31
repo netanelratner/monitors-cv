@@ -3,10 +3,11 @@ from urllib import parse
 import requests
 import hashlib
 import logging
+import yaml
 from tqdm import tqdm
 
 
-def download_model(url, filename, hash, basedir="/PreTrained/"):
+def download_model(url, filename, basedir="/PreTrained/"):
     path = os.path.dirname(__file__) + basedir + filename
 
     def download():
@@ -23,12 +24,12 @@ def download_model(url, filename, hash, basedir="/PreTrained/"):
             t.close()
 
     def is_model_ok():
-        m = hashlib.md5()
-        m.update(open(path, "rb").read())
-        md5sum = m.hexdigest()
-        if hash is not None and hash != md5sum:
-            logging.error("wrong model checksum.")
-            return False
+        # m = hashlib.md5()
+        # m.update(open(path, "rb").read())
+        # md5sum = m.hexdigest()
+        # if hash is not None and hash != md5sum:
+        #     logging.error("wrong model checksum.")
+        #     return False
         return True
 
     if not os.path.exists(path):
@@ -42,24 +43,8 @@ def download_model(url, filename, hash, basedir="/PreTrained/"):
 
 
 def get_models():
-    models = dict(
-        tes_eng=(
-            "https://github.com/tesseract-ocr/tessdata/raw/master/eng.traineddata",
-            "tessdata/eng.traineddata",
-            None,
-        ),
-        tes_osd=(
-            "https://github.com/tesseract-ocr/tessdata/raw/master/osd.traineddata",
-            "tessdata/osd.traineddata",
-            None,
-        ),
-        tps=(
-            "https://cvmonitormodelstorage.blob.core.windows.net/cvmodels/TPS-ResNet-BiLSTM-Attn.pth",
-            "TPS-ResNet-BiLSTM-Attn.pth",
-            "2d0c1fe9e71fa5104a74137971857c88",
-        ),
-    )
-    for name, loc_data in models.items():
-        models[name] = download_model(*loc_data)
-
+    models_list = yaml.load(open(os.path.dirname(__file__) + '/models.yaml','r'))['files']
+    models = {}
+    for model in models_list:
+        models[model['name']] = download_model(model['source'],model['name'])
     return models
