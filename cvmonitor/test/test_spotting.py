@@ -59,4 +59,8 @@ def test_expected_boxes(model):
 
 
 if __name__ == "__main__":
-    test_run_one_image(model())
+
+    model = text_spotting.Model(max_seq_len=6)
+
+    test_expected_boxes(model)
+    # test_run_one_image(model())

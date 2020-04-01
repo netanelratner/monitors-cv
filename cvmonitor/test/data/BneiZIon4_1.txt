@@ -1,0 +1,10 @@
+hr, val, 84, Position, 298, 264, 34, 25, 
+spo2, val, 95, Position, 301, 292, 29, 27, 
+hr_saturation, val, 83, Position, 361, 303, 11, 11, 
+bp_1, val, 170, Position, 296, 322, 30, 20, 
+bp_2, val, 83, Position, 336, 319, 23, 21, 
+temp, val, 36.20, Position, 52, 443, 35, 23, 
+etco2, val, 38, Position, 300, 353, 31, 27, 
+rr, val, 20, Position, 302, 382, 30, 28, 
+monitor, Position, 2.55, 415.72, 418.92, 12.61, 240.11, 200.31, 523.71, 511.36, 
+

@@ -21,7 +21,7 @@ import logging
 import os
 import sys
 import time
-import pylab
+# import pylab
 from argparse import ArgumentParser, SUPPRESS
 
 
@@ -111,17 +111,20 @@ def match_boxes(expected, actual):
 
 class Model():
 
-    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5, max_seq_len=10, iou_threshold=0.5):
-        mask_rcnn_model_xml = get_models()['FP32/text-spotting-0001-detector.xml']
-        mask_rcnn_model_bin = get_models()['FP32/text-spotting-0001-detector.bin']
+    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5, max_seq_len=10, iou_threshold=0.5, model_type='FP32'):
+
+        assert (model_type == 'FP32') or (model_type == 'FP16')
+
+        mask_rcnn_model_xml = get_models()['{}/text-spotting-0001-detector.xml'.format(model_type)]
+        mask_rcnn_model_bin = get_models()['{}/text-spotting-0001-detector.bin'.format(model_type)]
         
         
-        text_enc_model_xml = get_models()['FP32/text-spotting-0001-recognizer-encoder.xml']
-        text_enc_model_bin = get_models()['FP32/text-spotting-0001-recognizer-encoder.bin']
+        text_enc_model_xml = get_models()['{}/text-spotting-0001-recognizer-encoder.xml'.format(model_type)]
+        text_enc_model_bin = get_models()['{}/text-spotting-0001-recognizer-encoder.bin'.format(model_type)]
         
         
-        text_dec_model_xml = get_models()['FP32/text-spotting-0001-recognizer-decoder.xml']
-        text_dec_model_bin = get_models()['FP32/text-spotting-0001-recognizer-decoder.bin']
+        text_dec_model_xml = get_models()['{}/text-spotting-0001-recognizer-decoder.xml'.format(model_type)]
+        text_dec_model_bin = get_models()['{}/text-spotting-0001-recognizer-decoder.bin'.format(model_type)]
         
         # Plugin initialization for specified device and load extensions library if specified.
         log.info('Creating Inference Engine...')
@@ -294,10 +297,13 @@ class Model():
             if self.visualizer is not None:
                 # Visualize masks.
                 frame = self.visualizer(frame, boxes, classes, scores, masks, texts, masks_tracks_ids)
+
+                inf_time_message = 'Inference time: {:.3f} ms'.format(inf_time * 1000)
+                cv2.putText(frame, inf_time_message, (15, 15), cv2.FONT_HERSHEY_COMPLEX, 0.5, (200, 10, 10), 1)
+
             render_end = time.time()
             render_time = render_end - render_start
             log.debug('OpenCV rendering time: {:.3f} ms'.format(render_time * 1000))
-
 
 
         return texts, boxes, scores, frame
