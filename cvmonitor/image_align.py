@@ -65,9 +65,9 @@ def get_exif_rotation(im_file):
     if isinstance(tags,dict) and 'Image Orientation' in tags:
         orientation = tags['Image Orientation'].values[0]
         if orientation == 6:
-            rotation = 90
-        elif orientation == 8:
             rotation = -90
+        elif orientation == 8:
+            rotation = 90
         elif orientation == 3:
             rotation = 180
         else:
@@ -104,9 +104,9 @@ def get_qr_rotation(image, detected_qrcode=None, qrprefix=''):
 
 def rotate_image(image, rotation):
     logging.debug(f'Image is {rotation}')
-    if rotation == 90:
-        image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
     if rotation == -90:
+        image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    if rotation == 90:
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     if rotation == 180:
         image = cv2.rotate(image, cv2.ROTATE_180)

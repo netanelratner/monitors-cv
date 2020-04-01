@@ -17,7 +17,7 @@ import pytesseract
 from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
-
+from .ocr.text_spotting import text_spotting
 np.set_printoptions(precision=3)
 
 
@@ -26,6 +26,7 @@ class ComputerVision:
         self.blueprint = Blueprint("cv", __name__)
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
+        self.text_spotting = text_spotting.Model()
 
         @self.blueprint.route("/ping/")
         def ping():
@@ -183,6 +184,7 @@ class ComputerVision:
                                 value:
                                     type: string
             """
+            segment_threshold = float(os.environ.get("CVMONITOR_SEGMENT_THRESHOLD", "0.95"))
             threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD", "0.2"))
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
@@ -194,8 +196,22 @@ class ComputerVision:
             image = np.asarray(
                 imageio.imread(base64.decodebytes(data["image"].encode()))
             )
-            if not data.get("segments"):
-                return json.dumps([]), 200, {"content-type": "application/json"}
+            
+            if not "segments" in data:
+                # Let's run segment detection.
+                texts, boxes, scores, _ = self.text_spotting.forward(image)
+                segments = []
+                for text, box, score in zip(texts,boxes, scores):
+                    if score > segment_threshold:
+                        segments.append({
+                            'value': text,
+                            'left': float(box[0]),
+                            'top': float(box[1]),
+                            'right': float(box[2]),
+                            'bottom': float(box[3]),
+                            'score': float(score),
+                        })
+                return json.dumps(segments), 200, {"content-type": "application/json"}
 
             segments = data["segments"]
             if len(segments) == 0:
@@ -204,7 +220,7 @@ class ComputerVision:
             results = []
 
             for s, t in zip(segments, texts):
-                results.append({"segment_name": s["name"], "value": t})
+                results.append({"name": s["name"], "value": t})
             return json.dumps(results), 200, {"content-type": "application/json"}
 
         @self.blueprint.route("/qr/<title>", methods=["GET"])
