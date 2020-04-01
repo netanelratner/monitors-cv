@@ -46,6 +46,16 @@ def test_align_whole_image(client):
     assert res_image.shape[0] > 0
 
 
+def test_exif_align(client):
+    src_image = open(os.path.dirname(__file__)+'/data/sample.jpeg', 'rb').read()
+    assert len(src_image) > 0
+    os.environ['CVMONITOR_QR_PREFIX'] = ''
+    res = client.post(url_for('cv.align_image'), data=src_image, headers={'content-type': 'application/png'})
+    res_image = np.asarray(imageio.imread(res.data))
+    up_image = imageio.imread(os.path.dirname(__file__)+'/data/sample_up.jpg')
+    assert np.median(np.abs(res_image-up_image)) < 2.0
+
+
 def test_ocr(client):
     image = open(os.path.dirname(__file__)+'/data/11.jpg', 'rb').read()
     bbox_list = np.load(open(os.path.dirname(__file__)+'/data/11_recs.npy', 'rb'))

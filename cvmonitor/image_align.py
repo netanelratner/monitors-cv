@@ -105,9 +105,9 @@ def get_qr_rotation(image, detected_qrcode=None, qrprefix=''):
 def rotate_image(image, rotation):
     logging.debug(f'Image is {rotation}')
     if rotation == 90:
-        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-    if rotation == -90:
         image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    if rotation == -90:
+        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     if rotation == 180:
         image = cv2.rotate(image, cv2.ROTATE_180)
     return image
