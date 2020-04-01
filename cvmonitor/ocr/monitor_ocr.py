@@ -386,7 +386,7 @@ class ModelOCR(object):
 
 
 def build_model():
-    path = get_models()['tps']
+    path = get_models()['TPS-ResNet-BiLSTM-Attn.pth']
     model_ocr = ModelOCR()
     model_ocr.load_model(path)
     return model_ocr
