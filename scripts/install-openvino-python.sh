@@ -16,7 +16,7 @@ fi
 
 if [[ `python --version | grep 3.5` ]]
 then
-OPENVINO_VERSION='/opt/intel/openvino/python/python3.6/'
+OPENVINO_VERSION='/opt/intel/openvino/python/python3.5/'
 fi
 
 tmp_dir=$(mktemp -d -t openvino-XXXXXXXXXX)
