@@ -237,7 +237,7 @@ def fill_segments(segments, device_type):
     values = []
     colors = []
     for s in segments:
-        values.append({"segment_name": s['name'], "value": device[s['name']]()})
+        values.append({"name": s['name'], "value": device[s['name']]()})
         colors.append((random.randint(20,255),random.randint(20,255),random.randint(20,255)))
     return values, colors
 

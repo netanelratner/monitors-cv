@@ -8,6 +8,7 @@ import ujson as json
 import pytest
 from pylab import imshow, show
 from .. import cv, image_align
+from cvmonitor.ocr.text_spotting import text_spotting
 import pylab
 
 def test_ping(client):
@@ -56,7 +57,7 @@ def test_exif_align(client):
     assert np.median(np.abs(res_image-up_image)) < 2.0
 
 
-def test_ocr(client):
+def test_ocr_with_segments(client):
     image = open(os.path.dirname(__file__)+'/data/11.jpg', 'rb').read()
     bbox_list = np.load(open(os.path.dirname(__file__)+'/data/11_recs.npy', 'rb'))
     image_buffer = base64.encodebytes(image).decode()
@@ -65,7 +66,24 @@ def test_ocr(client):
         'segments': [{'left': int(s[0]), 'top':int(s[1]), 'right':int(s[2]), 'bottom':int(s[3]), 'name':str(i)} for i, s in enumerate(bbox_list)]
     }
     res = client.post(url_for('cv.run_ocr'), json=data)
-    assert res.json == [{'segment_name': '0', 'value': '52'}, {'segment_name': '1', 'value': '15'}, {
-        'segment_name': '2', 'value': '93'}, {'segment_name': '3', 'value': '115'}, {'segment_name': '4', 'value': '45'}]
+    assert res.json == [{'name': '0', 'value': '52'}, {'name': '1', 'value': '15'}, {
+        'name': '2', 'value': '93'}, {'name': '3', 'value': '115'}, {'name': '4', 'value': '45'}]
 
-
+def test_ocr_no_segments(client):
+    bbox_list = np.load(open(os.path.dirname(__file__)+'/data/11_recs.npy', 'rb'))
+    image = open(os.path.dirname(__file__)+'/data/11.jpg', 'rb').read()
+    image_buffer = base64.encodebytes(image).decode()
+    data = {
+        'image': image_buffer,
+    }
+    res = client.post(url_for('cv.run_ocr'), json=data)
+    segments = res.json
+    
+    expected = [{'name': '0', 'value': '52'}, {'name': '1', 'value': '15'}, {'name': '2', 'value': '93'}, {'name': '3', 'value': '115'}, {'name': '4', 'value': '45'}]
+    
+    box_res = [[s['left'],s['top'],s['right'],s['bottom']] for s in segments]
+    box_expected = bbox_list
+    best_matches, _ = text_spotting.match_boxes(box_res, box_expected)
+    for i in range(len(best_matches)):
+        assert text_spotting.iou(box_res[i], box_expected[best_matches[i]]) > 0.75
+        assert expected[best_matches[i]]['value'] in segments[i]['value'] 
