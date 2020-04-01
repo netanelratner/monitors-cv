@@ -5,7 +5,7 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -mvenv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 WORKDIR /opt/app/
-ADD scripts/ . /opt/app/scripts/
+ADD scripts/ /opt/app/scripts/
 RUN scripts/install-openvino.sh
 ADD requirements.txt /opt/app/requirements.txt
 RUN pip install -U wheel setuptools_scm setuptools
