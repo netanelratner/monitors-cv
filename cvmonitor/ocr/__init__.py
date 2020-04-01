@@ -43,8 +43,12 @@ def download_model(url, filename, basedir="/PreTrained/"):
 
 
 def get_models():
-    models_list = yaml.load(open(os.path.dirname(__file__) + '/models.yaml','r'))['files']
+    models_list = yaml.safe_load(open(os.path.dirname(__file__) + '/models.yaml','r'))['files']
     models = {}
     for model in models_list:
         models[model['name']] = download_model(model['source'],model['name'])
     return models
+
+def pre_get_models():
+    get_models()
+    return 0
