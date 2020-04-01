@@ -8,7 +8,8 @@ WORKDIR /opt/app/
 ADD scripts/ . /opt/app/scripts/
 RUN scripts/install-openvino.sh
 ADD requirements.txt /opt/app/requirements.txt
-RUN pip install -r /opt/app/requirements.txt -v
+RUN pip install -U wheel setuptools_scm setuptools
+RUN pip install -r /opt/app/requirements.txt
 RUN scripts/install-openvino-python.sh
 COPY . /opt/app
 COPY .git /opt/app/.git
