@@ -66,9 +66,9 @@ def get_exif_rotation(im_file):
         orientation = tags['Image Orientation'].values[0]
         if orientation == 6:
             rotation = 90
-        if orientation == 8:
+        elif orientation == 8:
             rotation = -90
-        if orientation == 3:
+        elif orientation == 3:
             rotation = 180
         else:
             rotation = 0
