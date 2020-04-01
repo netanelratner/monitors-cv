@@ -9,11 +9,12 @@ ADD scripts/ . /opt/app/scripts/
 RUN scripts/install-openvino.sh
 ADD requirements.txt /opt/app/requirements.txt
 RUN pip install -U wheel setuptools_scm setuptools
+RUN pip install torch
 RUN pip install -r /opt/app/requirements.txt
 RUN scripts/install-openvino-python.sh
 COPY . /opt/app
 COPY .git /opt/app/.git
-RUN pip install -e /opt/app --no-cache-dir
-RUN pytest /opt/app
+RUN pip install -e . --no-cache-dir
+RUN pytest
 RUN cvmonitor-get-models
 CMD cvmonitor
