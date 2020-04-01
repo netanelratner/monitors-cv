@@ -8,6 +8,7 @@ import io
 import os
 import base64
 import qrcode
+import logging
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
@@ -121,6 +122,7 @@ class ComputerVision:
                 headers["X-MONITOR-ID"] = detected_qrcode.data.decode()
 
             if align_image_by_qr:
+                logging.debug("Trying to align image by qr code")
                 image, _ = align_by_qrcode(
                     image, detected_qrcode, qrsize, boundery, qrprefix
                 )

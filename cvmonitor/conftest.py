@@ -1,7 +1,7 @@
 import pytest
-from .server import Server
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def app():
+    from .server import Server
     server = Server()
     return server.app
