@@ -17,12 +17,13 @@
 
 from __future__ import print_function
 
-import logging as log
+import logging
 import os
 import sys
 import time
 import pylab
 from argparse import ArgumentParser, SUPPRESS
+
 
 import cv2
 import numpy as np
@@ -34,8 +35,9 @@ from .visualizer import Visualizer
 from .. import get_models
 SOS_INDEX = 0
 EOS_INDEX = 1
-MAX_SEQ_LEN = 28
 
+
+log = logging.getLogger()
 
 def expand_box(box, scale):
     w_half = (box[2] - box[0]) * .5
@@ -68,9 +70,48 @@ def segm_postprocess(box, raw_cls_mask, im_h, im_w):
                             (x0 - extended_box[0]):(x1 - extended_box[0])]
     return im_mask
 
+def iou(boxA, boxB):
+    """
+    boxes are [left, top, right, bottom]
+    https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+    """
+    # determine the (x, y)-coordinates of the intersection rectangle
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+
+    # compute the area of intersection rectangle
+    interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
+    if interArea == 0:
+        return 0
+
+    # compute the area of both the prediction and ground-truth
+    # rectangles
+    boxAArea = abs((boxA[2] - boxA[0]) * (boxA[3] - boxA[1]))
+    boxBArea = abs((boxB[2] - boxB[0]) * (boxB[3] - boxB[1]))
+
+    # compute the intersection over union by taking the intersection
+    # area and dividing it by the sum of prediction + ground-truth
+    # areas - the interesection area
+    iou = interArea / float(boxAArea + boxBArea - interArea)
+
+    # return the intersection over union value
+    return iou
+
+
+def match_boxes(expected, actual):
+    matches = np.zeros((len(expected),len(actual)),dtype=np.float32)
+    for i, be in enumerate(expected):
+        for j, ba in enumerate(actual):
+            matches[i,j]=iou(be,ba)
+    matches_indices = np.argsort(matches,axis=0,kind='stable')[:,-1]
+    return matches_indices, matches[matches_indices,0]
+
+
 class Model():
 
-    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5):
+    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5, max_seq_len=10, iou_threshold=0.5):
         mask_rcnn_model_xml = get_models()['FP32/text-spotting-0001-detector.xml']
         mask_rcnn_model_bin = get_models()['FP32/text-spotting-0001-detector.bin']
         
@@ -121,12 +162,20 @@ class Model():
         self.hidden_shape = text_dec_net.inputs['prev_hidden'].shape
         self.prob_threshold = prob_threshold
         self.tracker = None
+        self.visualizer = None
+        self.iou_threshold = iou_threshold
+        self.max_seq_len = max_seq_len
         if track:
             self.tracker = StaticIOUTracker()
         if visualize:
             self.visualizer = Visualizer(['__background__', 'text'], show_boxes=True, show_scores=True)
-    
-    def forward(self, frame):
+        log.info('Model ready...')
+
+    def forward(self, frame, expected_boxes=None):
+        """
+        returns: texts, boxes, scores, frame
+        boxes are [left, top, right, bottom]
+        """
         [n, c, h, w] = self.shape
         # Resize the image to keep the same aspect ratio and to fit it to a window of a target size.
         scale_x = scale_y = min(h / frame.shape[0], w / frame.shape[1])
@@ -144,7 +193,9 @@ class Model():
 
         # Run the net.
         inf_start = time.time()
+        log.info('running main network')
         outputs = self.mask_rcnn_exec_net.infer({'im_data': input_image, 'im_info': input_image_info})
+        log.info('main network finished')
 
         # Parse detection results of the current request
         boxes = outputs['boxes']
@@ -164,10 +215,19 @@ class Model():
         boxes[:, 0::2] /= scale_x
         boxes[:, 1::2] /= scale_y
 
-
+        matches = []
+        results = []
+        # if expected_boxes:
+        #     best_matches, scores = match_boxes([e['bbox'] for e in expected_boxes], boxes)
+        #     for i,(m,s)  in enumerate(zip(best_matches,scores)):
+        #         if s > self.iou_threshold:
+        #             resluts.append([m, scores[i] , classes[i], boxes[i], raw_masks[i], text_features[i]])
+        
         texts = []
         alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
-        for feature in text_features:
+        for k, feature in enumerate(text_features):
+
+
             feature = self.text_enc_exec_net.infer({'input': feature})['output']
             feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
             feature = np.transpose(feature, (0, 2, 1))
@@ -176,7 +236,7 @@ class Model():
             prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
             text = ''
-            for i in range(MAX_SEQ_LEN):
+            for i in range(self.max_seq_len):
                 decoder_output = self.text_dec_exec_net.infer({
                     'prev_symbol': prev_symbol_index,
                     'prev_hidden': hidden,
@@ -189,7 +249,7 @@ class Model():
                 hidden = decoder_output['hidden']
 
             texts.append(text)
-
+            log.info(f'detected {text}: {scores[k]} {boxes[k]}')
         inf_end = time.time()
         inf_time = inf_end - inf_start
         # performance stats.
