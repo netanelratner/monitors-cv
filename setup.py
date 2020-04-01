@@ -11,7 +11,7 @@ setup(
         'console_scripts': 
             [
                 'cvmonitor=cvmonitor.server:main',
-                'cvmonitor-get-model=cvmonitor.ocr.monitor_ocr:get_model'
+                'cvmonitor-get-models=cvmonitor.ocr:pre_get_models'
             ],
     }
 )

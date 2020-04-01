@@ -34,11 +34,11 @@ global:
         # scheme defaults to 'http'.
     
       static_configs:
-      - targets: ['10.0.0.4:80']
+      - targets: ['backend:80']
     - job_name: 'cv'
     
       # metrics_path defaults to '/metrics'
       # scheme defaults to 'http'.
   
       static_configs:
-      - targets: ['10.0.0.4:8088']
+      - targets: ['cvbackend:8088']

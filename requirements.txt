@@ -28,3 +28,6 @@ prometheus_flask_exporter
 setuptools_scm
 pytest-xdist
 pytesseract
+exifread
+imutils
+jaeger-client
