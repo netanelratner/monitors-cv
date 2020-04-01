@@ -11,8 +11,7 @@ import pickle
 import random
 import time
 from typing import Dict, List, Set
-from uuid import uuid4
-
+import uuid
 import matplotlib
 import cv2
 import imageio
@@ -194,7 +193,11 @@ devices = {
 
 def get_qr_code(title):
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L)
-    text = f'cvmonitors-{title}-{uuid4().hex[:16]}'
+    # Seedable uuid4:
+    a = "%32x" % random.getrandbits(128)
+    rd = a[:12] + '4' + a[13:16] + 'a' + a[17:]
+    uuid4 = uuid.UUID(rd)
+    text = f'cvmonitors-{title}-{uuid4.hex[:16]}'
     qr.add_data(text)
     qr.make(fit=True)
     img = qr.make_image(fill_color='black', back_color='white')
@@ -490,13 +493,15 @@ def simulate_monitor(url):
     
 
 if __name__ == "__main__":
-    url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
+    #url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
     url = 'http://52.157.71.156'
     
     parser =  argparse.ArgumentParser()
     parser.add_argument('--no_send',action='store_true',help='dont send to server just create images')
     parser.add_argument('--send',action='store_true',help='dont send to server just create images')
     parser.add_argument('--sim',action='store_true',help='Simulate a device')
+    parser.add_argument('--seed',default=0,type=int,help='Random seed')
+    parser.add_argument('--url',default=url,type=int,help='Server url to use')
     args = parser.parse_args()
     if args.no_send!=args.send:
         if args.no_send:
@@ -504,8 +509,8 @@ if __name__ == "__main__":
         if args.send:
             SEND_TO_SERVER=True
 
-    random.seed(0)
+    random.seed(args.seed)
     if args.sim:
-        simulate_monitor(url)
+        simulate_monitor(args.url)
     else:
-        generate_data(url)
+        generate_data(args.url)

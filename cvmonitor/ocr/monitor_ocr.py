@@ -13,6 +13,7 @@ import hashlib
  
 from tqdm import tqdm
 from .model import Model
+from .import get_models
 np.set_printoptions(precision=3)
 torch.set_printoptions(precision=3)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -382,43 +383,10 @@ class ModelOCR(object):
         return texts, scores
 
 
-def get_model():
-    filename = 'TPS-ResNet-BiLSTM-Attn.pth'
-    path = os.path.dirname(__file__) +'/PreTrained/' 
-    url = 'https://cvmonitormodelstorage.blob.core.windows.net/cvmodels/TPS-ResNet-BiLSTM-Attn.pth'
-    def download_model():
-        os.makedirs(path,exist_ok=True)
-        with open(path + filename,'wb') as f:
-            result = requests.get(url, stream=True)
-            # Total size in bytes.
-            total_size = int(result.headers.get('content-length', 0))
-            block_size = 1024*1024 #1 Kibibyte
-            t=tqdm(total=total_size, unit='iB', unit_scale=True)
-            for data in result.iter_content(block_size):
-                t.update(len(data))
-                f.write(data)
-            t.close()
-    def is_model_ok():
-        m = hashlib.md5()
-        m.update(open(path + filename,'rb').read())
-        md5sum = m.hexdigest()
-        if '2d0c1fe9e71fa5104a74137971857c88' != md5sum:
-            logging.error('wrong model checksum.')
-            return False
-        return True
 
-    
-    if not os.path.exists(path + filename):
-        download_model()
-
-    if is_model_ok():
-        logging.info('model found.')
-        return path + filename
-    else:
-        raise RuntimeError("Could not get model")
 
 def build_model():
-    path = get_model()
+    path = get_models()['TPS-ResNet-BiLSTM-Attn.pth']
     model_ocr = ModelOCR()
     model_ocr.load_model(path)
     return model_ocr
