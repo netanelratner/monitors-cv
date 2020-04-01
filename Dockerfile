@@ -4,14 +4,14 @@ RUN apt-get update && apt-get install -yy wget libzbar0 libjpeg-turbo8-dev libz-
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -mvenv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-ADD requirements.txt /opt/app/requirements.txt
-RUN pip install -r /opt/app/requirements.txt --no-cache-dir
+WORKDIR /opt/app/
 ADD scripts/ . /opt/app/scripts/
 RUN scripts/install-openvino.sh
+ADD requirements.txt /opt/app/requirements.txt
+RUN pip install -r /opt/app/requirements.txt -v
 RUN scripts/install-openvino-python.sh
 COPY . /opt/app
 COPY .git /opt/app/.git
-WORKDIR /opt/app/
 RUN pip install -e /opt/app --no-cache-dir
 RUN pytest /opt/app
 RUN cvmonitor-get-models

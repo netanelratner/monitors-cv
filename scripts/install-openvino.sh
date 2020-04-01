@@ -11,7 +11,7 @@ if ! apt show $package 2> /dev/null
 then
     wget https://apt.repos.intel.com/openvino/2020/GPG-PUB-KEY-INTEL-OPENVINO-2020  -O gpg-openvino-key 
     apt-key add gpg-openvino-key 
-    cat "deb https://apt.repos.intel.com/openvino/2020 all main" > /etc/apt/sources.list.d/intel-openvino-2020.list
+    echo "deb https://apt.repos.intel.com/openvino/2020 all main" > /etc/apt/sources.list.d/intel-openvino-2020.list
     apt update
     apt-get install -y $package
 fi

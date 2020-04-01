@@ -5,7 +5,6 @@ venv/
 .vscode/
 __pycache__/**
 id_rsa*
-**/TPS-ResNet-BiLSTM-Attn.pth
 compose/database/prom/data/**
 comopse/database/grafana/data/**/*
 build/
