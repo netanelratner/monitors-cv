@@ -42,8 +42,7 @@ class Server:
             """
             return 'pong'
 
-def main():
-    
+def init_logs():
     for logger in (
         
         logging.getLogger(),
@@ -53,6 +52,9 @@ def main():
         sh  = logging.StreamHandler()
         sh.setFormatter(formatter)
         logger.addHandler(sh)
+
+def main():
+    init_logs()
     server = Server()
     host=os.environ.get('CVMONITOR_HOST','0.0.0.0')
     port=int(os.environ.get('CVMONITOR_PORT','8088'))

@@ -392,6 +392,8 @@ def send_picture(url: str, device: Device):
             headers={'Content-Type':'image/jpeg','X-IMAGE-ID':str(device.index)}
             if device.monitor_id is not None:
                 headers['X-MONITOR-ID']=str(device.monitor_id)
+            else:
+                headers['X-MONITOR-ID']=str(device.qrtext)
             headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
             res = requests.post(url + '/monitor_image', data=b,headers=headers)
             res_data = res.json()
@@ -501,7 +503,7 @@ if __name__ == "__main__":
     parser.add_argument('--send',action='store_true',help='dont send to server just create images')
     parser.add_argument('--sim',action='store_true',help='Simulate a device')
     parser.add_argument('--seed',default=0,type=int,help='Random seed')
-    parser.add_argument('--url',default=url,type=int,help='Server url to use')
+    parser.add_argument('--url',default=url,type=str,help='Server url to use')
     args = parser.parse_args()
     if args.no_send!=args.send:
         if args.no_send:

@@ -13,6 +13,7 @@ from prometheus_client import Summary
 import pytesseract
 from pylab import imshow, show
 import exifread
+import logging
 from .qr import find_qrcode
 np.set_printoptions(precision=3)
 
@@ -65,9 +66,9 @@ def get_exif_rotation(im_file):
         orientation = tags['Image Orientation'].values[0]
         if orientation == 6:
             rotation = 90
-        if orientation == 8:
+        elif orientation == 8:
             rotation = -90
-        if orientation == 3:
+        elif orientation == 3:
             rotation = 180
         else:
             rotation = 0
@@ -102,6 +103,7 @@ def get_qr_rotation(image, detected_qrcode=None, qrprefix=''):
 
 
 def rotate_image(image, rotation):
+    logging.debug(f'Image is {rotation}')
     if rotation == 90:
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     if rotation == -90:
