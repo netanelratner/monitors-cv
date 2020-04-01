@@ -105,8 +105,8 @@ def match_boxes(expected, actual):
     for i, be in enumerate(expected):
         for j, ba in enumerate(actual):
             matches[i,j]=iou(be,ba)
-    matches_indices = np.argsort(matches,axis=0,kind='stable')[:,-1]
-    return matches_indices, matches[matches_indices,0]
+    matches_indices = np.argsort(matches,axis=1,kind='stable')[:,-1]
+    return matches_indices, matches[range(matches.shape[0]), matches_indices]
 
 
 class Model():
@@ -190,7 +190,7 @@ class Model():
         input_image = input_image.transpose((2, 0, 1))
         input_image = input_image.reshape((n, c, h, w)).astype(np.float32)
         input_image_info = np.asarray([[input_image_size[0], input_image_size[1], 1]], dtype=np.float32)
-
+        del n, c, h, w
         # Run the net.
         inf_start = time.time()
         log.info('running main network')
@@ -215,14 +215,30 @@ class Model():
         boxes[:, 0::2] /= scale_x
         boxes[:, 1::2] /= scale_y
 
-        matches = []
-        results = []
-        # if expected_boxes:
-        #     best_matches, scores = match_boxes([e['bbox'] for e in expected_boxes], boxes)
-        #     for i,(m,s)  in enumerate(zip(best_matches,scores)):
-        #         if s > self.iou_threshold:
-        #             resluts.append([m, scores[i] , classes[i], boxes[i], raw_masks[i], text_features[i]])
-        
+        if expected_boxes:
+            tt = time.time()
+            initial_scores = scores
+            initial_classes = classes
+            initial_boxes = boxes
+            initial_raw_masks = raw_masks
+            initial_text_features = text_features
+            scores = []
+            classes = []
+            boxes = []
+            raw_masks = []
+            text_features = []
+            matches = []
+            best_matches, match_score = match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
+            for i,(match, score)  in enumerate(zip(best_matches, match_score)):
+                log.info(f'box: {initial_boxes[match]} scored iou of {score}')
+                if score > self.iou_threshold:
+                    scores.append(initial_scores[match])
+                    classes.append(initial_classes[match])
+                    boxes.append(initial_boxes[match])
+                    raw_masks.append(initial_raw_masks[match])
+                    text_features.append(initial_text_features[match])
+                    matches.append(match)
+            log.info(f' Time Spent on trimming: {(time.time()-tt)*1000} ms')
         texts = []
         alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
         for k, feature in enumerate(text_features):
