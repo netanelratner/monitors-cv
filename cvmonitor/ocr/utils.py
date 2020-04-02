@@ -1,24 +1,24 @@
 
 
 
-def get_device_fields():
+def get_device_names():
 
-    device_fields = {}
+    device_names = {}
 
-    device_fields = {
+    device_names =  {
                      # monitor
-                     'hr': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
+                     'Heart Rate': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
+                     'SpO2': {'max_len': 3, 'min': 90, 'max': None, 'dtype': 'int'},
+                     'RR': {'max_len': 2, 'min': 8, 'max': 26, 'dtype': 'int'},
+                     'IBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
+                     'IBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
+                     'NIBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
+                     'NIBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
+                     'Temp': {'max_len': 3, 'min': 35.0, 'max': 38.0, 'dtype': 'float', 'num_digits_after_point': 1},
+                     'etCO2': {'max_len': 2, 'min': 24, 'max': 44, 'dtype': 'int'},
+
+                     # for annotations only, currently not found in android app
                      'hr_saturation': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
-                     'spo2': {'max_len': 3, 'min': 90, 'max': None, 'dtype': 'int'},
-                     'rr': {'max_len': 2, 'min': 8, 'max': 26, 'dtype': 'int'},
-                     'bp_1': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
-                     'bp_2': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
-                     # 'ibp_1': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
-                     # 'ibp_2': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
-                     # 'nibp_1': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
-                     # 'nibp_2': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
-                     'temp': {'max_len': 3, 'min': 35.0, 'max': 38.0, 'dtype': 'float', 'num_digits_after_point': 1},
-                     'etco2': {'max_len': 2, 'min': 24, 'max': 44, 'dtype': 'int'},
 
                      # respirator
                      # TODO
@@ -27,4 +27,84 @@ def get_device_fields():
                      # TODO
                      }
 
-    return device_fields
+    return device_names
+
+
+def annotation_names_mapping():
+
+    """
+    anns: field names as given in (matlab) annotations
+    names: field names as given in android setting app
+    """
+
+    names2anns = {}
+
+    names2anns['hr'] = 'Heart Rate'
+    names2anns['hr_saturation'] = None
+    names2anns['spo2'] = 'SpO2'
+    names2anns['rr'] = 'RR'
+    names2anns['bp_1'] = 'IBP-Systole'
+    names2anns['bp_2'] = 'IBP-Diastole'
+    names2anns['ibp_1'] = 'IBP-Systole'
+    names2anns['ibp_2'] = 'IBP-Diastole'
+    names2anns['nibp_1'] = 'NIBP-Systole'
+    names2anns['nibp_2'] = 'NIBP-Diastole'
+    names2anns['temp'] = 'Temp'
+    names2anns['etco2'] = 'etCO2'
+    names2anns['screen'] = None
+
+    anns2names = {}
+    for key, val in names2anns.items():
+        if val is not None:
+            anns2names[val] = key
+
+    return names2anns, anns2names
+
+def is_int(val):
+    try:
+        num = int(val)
+    except ValueError:
+        return False
+    return True
+
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+
+    return False
+
+def enlarge_box(box, percent=0.2):
+    """
+    box should be in ltrb format: [left, top, right, bottom]
+    """
+
+    left = box[0]
+    top = box[1]
+    right = box[2]
+    bottom = box[3]
+
+    width = right - left
+    height = bottom - top
+
+    boundary_x = int(percent * width)
+    boundary_y = int(percent * height)
+
+    left -= boundary_x
+    right += boundary_x
+    top -= boundary_y
+    bottom += boundary_y
+
+    box_out = [left, top, right, bottom]
+
+    return box_out

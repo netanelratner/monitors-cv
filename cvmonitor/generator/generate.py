@@ -157,10 +157,12 @@ monitor = {
      "Heart Rate": lambda: random.randint(45, 120),
      "SpO2": lambda: random.randint(10, 100),
      "RR": lambda: random.randint(10, 100),
-     "IBP": lambda: random.randint(10, 100),
-     "NIBP": lambda: random.randint(10, 100),
+     "IBP-Systole": lambda: random.randint(10, 100),
+     "IBP-Diastole": lambda: random.randint(10, 100),
+     "NIBP-Systole": lambda: random.randint(10, 100),
+     "NIBP-Diastole": lambda: random.randint(10, 100),
      "Temp": lambda: random.randint(10, 100),
-     "etC02": lambda: random.randint(10, 100),
+     "etCO2": lambda: random.randint(10, 100),
 }
 
 respirator = {

@@ -173,6 +173,7 @@ def align_by_4_corners(image, corners, shape_out=(1280,768), margin_percent=0.1)
     outer_margin is the margin outside these points
     """
 
+    #FIXME: currently does not work well
 
     # verify corners order
     src_pts=order_points(corners).astype(np.float32)
@@ -204,11 +205,13 @@ def align_by_4_corners(image, corners, shape_out=(1280,768), margin_percent=0.1)
 
     # warp image corners
     res = M @ np.concatenate([shape_pts, np.ones((4, 1))], 1).transpose()
+    # x = cv2.perspectiveTransform(np.array(shape_pts), M)
     for r in range(4):
         res[:, r] /= res[-1, r]
-    width = int(np.ceil(max(res[0, :])))  # + int(np.floor(min(res[0,:])))
-    height = int(np.ceil(max(res[1, :])))  # + int(np.floor(min(res[1,:])))
-    warped = cv2.warpPerspective(image, M, (width, height))
+    # width = int(np.ceil(max(res[0, :])))  # + int(np.floor(min(res[0,:])))
+    # height = int(np.ceil(max(res[1, :])))  # + int(np.floor(min(res[1,:])))
+    # warped = cv2.warpPerspective(image, M, (width, height))
+    warped = cv2.warpPerspective(image, M, (height_screen, width_screen))
     # warped = warped[1:int(verti_length)+1,1:int(horiz_length)+1]
 
     return warped, M

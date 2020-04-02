@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from cvmonitor.ocr.text_spotting import text_spotting
 from cvmonitor.image_align import align_by_4_corners
-
+from cvmonitor.ocr.utils import annotation_names_mapping, is_int, enlarge_box
 
 def read_annotation_file(file_path):
 
@@ -62,40 +62,6 @@ def read_annotation_file(file_path):
                         n += 5
 
     return ann
-
-
-def is_int(val):
-    try:
-        num = int(val)
-    except ValueError:
-        return False
-    return True
-
-
-def enlarge_box(box, percent=0.2):
-    """
-    box should be in ltrb format: [left, top, right, bottom]
-    """
-
-    left = box[0]
-    top = box[1]
-    right = box[2]
-    bottom = box[3]
-
-    width = right - left
-    height = bottom - top
-
-    boundary_x = int(percent * width)
-    boundary_y = int(percent * height)
-
-    left -= boundary_x
-    right += boundary_x
-    top -= boundary_y
-    bottom += boundary_y
-
-    box_out = [left, top, right, bottom]
-
-    return box_out
 
 
 def change_box_type(box_in, type_in, type_out='ltrb'):
@@ -187,15 +153,19 @@ def change_corners_type(corners, type_in, type_out='xyxy'):
 
 def process_annotation_dict(ann_dict):
 
+    names2anns, anns2names = annotation_names_mapping()
+
     expected_boxes = []
 
     for key, val in ann_dict.items():
+
+        name = names2anns[key]
 
         bbox = change_box_type(val['box'], type_in='ltwh', type_out='ltrb')
 
         bbox = enlarge_box(bbox, percent=0.2)
 
-        expected_box = {'field': key,
+        expected_box = {'name': name,
                         'bbox': bbox,
                         'true_val': val['val']}
 
@@ -211,7 +181,6 @@ if __name__ == '__main__':
     ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
     img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
 
-
     output_dir = 'cvmonitor/ocr/scripts/output'
     os.makedirs(output_dir, exist_ok=True)
     img_name = os.path.basename(img_path).split('.')[0]
@@ -223,7 +192,7 @@ if __name__ == '__main__':
     visualize = True
     prob_threshold = 0.5
     max_seq_len = 6
-    iou_threshold = 0.5
+    iou_threshold = 0.4
     model_type = 'FP32'  # 'FP16' # 'FP32'
     rgb2bgr = False # if True, channels order will be reversed
 
