@@ -216,6 +216,7 @@ class ComputerVision:
 
             segments = data["segments"]
             if len(segments) == 0:
+                logging.error("No segments")
                 return json.dumps([]), 200, {"content-type": "application/json"}
             if spotting_ocr:
                 expected_boxes = []
@@ -231,6 +232,7 @@ class ComputerVision:
 
             for s, t in zip(segments, texts):
                 results.append({"name": s["name"], "value": t})
+            logging.debug(f"Detections: {results}")
             return json.dumps(results), 200, {"content-type": "application/json"}
 
         @self.blueprint.route("/qr/<title>", methods=["GET"])

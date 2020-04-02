@@ -47,7 +47,7 @@ services:
   #   expose:
   #     - 3000
   cvbackend:
-    image: brainoom/cvmonitor:v0.3.8
+    image: brainoom/cvmonitor:v0.3.9
     restart: always
     ports:
       - "8088:8088"
@@ -76,7 +76,7 @@ services:
       - mongo
       - jaeger
   frontend:
-      image: registry.gitlab.com/or2511/covid-frontend:Setable_Backend_IP
+      image: registry.gitlab.com/or2511/covid-frontend:setable-backend-ip 
       restart: always
       ports:
         - "4200:4200"

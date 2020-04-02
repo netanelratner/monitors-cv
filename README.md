@@ -62,13 +62,14 @@ docker build .
 - Ubuntu 18.04 (16.04 & 19.10 may work)
 
 
+
 ```bash
 # Install Dependancies:
 sudo apt-get update && sudo apt-get install -yy wget libzbar0 libjpeg-turbo8-dev libz-dev python3-pip python3-venv git-lfs
 # Create a virutal enviornment (once)
 python3 -venv ~/envs/cvmonitors/
 # Clone the repo:
-https://github.com/giladfr-rnd/monitors-cv && cd monitors-cv && git lfs pull
+git clone https://github.com/giladfr-rnd/monitors-cv && cd monitors-cv && git lfs pull
 # Activate virtuale enviroment (every time)
 source  ~/envs/cvmonitors/bin/activate
 # Install in dev mode
@@ -83,10 +84,37 @@ sudo scripts/install-openvino.sh
 scripts/install-openvino-python.sh
 ```
 
-## What about tesseract?
 
-2. The follwing setting, may work with good enough bounding box:
-tesseract --tessdata-dir /usr/local/share/tessdata/ -l eng --psm 12 --oem 2 cvmonitors-ivac-97fd0652c8fa4893.jpg cvmonitors-ivac-97fd0652c8fa4893.jpg.txt
-Let's try it as some point.
-I have to manuall put the langauge files in `/usr/local/share/tessdata/` which seems wrong to me.
+## Run Server:
+
+
+### Install docker & docker compose:
+
+Instructions from  docker.com:
+```bash
+sudo apt-get remove docker docker-engine docker.io containerd runc
+sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io
+sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+```
+
+### Start the server
+
+From the folder of this repo run
+
+```bash
+docker-compose up
+```
+
 
