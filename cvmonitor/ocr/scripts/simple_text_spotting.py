@@ -215,13 +215,14 @@ if __name__ == '__main__':
             corners = change_corners_type(corners_ann, type_in='xxyy', type_out='xyxy')
 
             # align img and annotions by corners
-            img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
+            # img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
+            img_warped, M = align_by_4_corners(img, corners)
 
             # note that bounding boxes need not be aligned, since they will be taken from the aligned image
 
-            # cv2.imshow('image', img)
-            # cv2.imshow('warped', img_warped)
-            # cv2.waitKey(0)
+            cv2.imshow('image', img)
+            cv2.imshow('warped', img_warped)
+            cv2.waitKey(0)
 
             # get expected boxes
             expected_boxes = process_annotation_dict(ann)
