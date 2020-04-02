@@ -33,6 +33,9 @@ from .tracker import StaticIOUTracker
 from .visualizer import Visualizer
 
 from .. import get_models
+
+from cvmonitor.ocr.utils import get_device_fields
+
 SOS_INDEX = 0
 EOS_INDEX = 1
 
@@ -111,7 +114,7 @@ def match_boxes(expected, actual):
 
 class Model():
 
-    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5, max_seq_len=10, iou_threshold=0.5, model_type='FP32'):
+    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5, max_seq_len=10, iou_threshold=0.5, model_type='FP32', rgb2bgr=True):
 
         assert (model_type == 'FP32') or (model_type == 'FP16')
 
@@ -168,6 +171,8 @@ class Model():
         self.visualizer = None
         self.iou_threshold = iou_threshold
         self.max_seq_len = max_seq_len
+        self.rgb2bgr = rgb2bgr
+        self.device_fields = get_device_fields()
         if track:
             self.tracker = StaticIOUTracker()
         if visualize:
@@ -183,6 +188,9 @@ class Model():
         # Resize the image to keep the same aspect ratio and to fit it to a window of a target size.
         scale_x = scale_y = min(h / frame.shape[0], w / frame.shape[1])
         input_image = cv2.resize(frame, None, fx=scale_x, fy=scale_y)
+
+        if self.rgb2bgr:
+            input_image = input_image[:, :, ::-1] # reverse channels order
 
         input_image_size = input_image.shape[:2]
         input_image = np.pad(input_image, ((0, h - input_image_size[0]),
@@ -231,6 +239,7 @@ class Model():
             raw_masks = []
             text_features = []
             matches = []
+            fields = []
             best_matches, match_score = match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
             for i,(match, score)  in enumerate(zip(best_matches, match_score)):
                 log.info(f'box: {initial_boxes[match]} scored iou of {score}')
@@ -241,11 +250,14 @@ class Model():
                     raw_masks.append(initial_raw_masks[match])
                     text_features.append(initial_text_features[match])
                     matches.append(match)
+                    field = expected_boxes[i]['field']
+                    fields.append(field)
+
+            classes = np.asarray(classes, dtype=np.uint32)
             log.info(f' Time Spent on trimming: {(time.time()-tt)*1000} ms')
         texts = []
         alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
         for k, feature in enumerate(text_features):
-
 
             feature = self.text_enc_exec_net.infer({'input': feature})['output']
             feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
@@ -254,8 +266,11 @@ class Model():
             hidden = np.zeros(self.hidden_shape)
             prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
+            field = fields[k]
+            device_field_params = self.device_fields[field]
+
             text = ''
-            for i in range(self.max_seq_len):
+            for i in range(device_field_params['max_len']):
                 decoder_output = self.text_dec_exec_net.infer({
                     'prev_symbol': prev_symbol_index,
                     'prev_hidden': hidden,
@@ -266,6 +281,23 @@ class Model():
                     break
                 text += alphabet[prev_symbol_index]
                 hidden = decoder_output['hidden']
+
+            # treat decimal digits
+            if 'num_digits_after_point' in device_field_params.keys():
+                dot_index = len(text) - device_field_params['num_digits_after_point']
+                text = text[:dot_index] + '.' + text[dot_index:]
+
+            # verify text values
+            # cast text type
+            dtype = device_field_params['dtype']
+            if dtype == 'int' or dtype == 'float':
+                val = eval('{}({})'.format(dtype, text))
+
+                if (device_field_params['min'] is not None) and (val < device_field_params['min']) \
+                    or \
+                    (device_field_params['max'] is not None) and (val > device_field_params['max']):
+
+                    text = 'NaN'
 
             texts.append(text)
             log.info(f'detected {text}: {scores[k]} {boxes[k]}')
