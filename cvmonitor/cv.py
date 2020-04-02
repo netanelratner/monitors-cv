@@ -185,6 +185,7 @@ class ComputerVision:
                                     type: string
             """
             segment_threshold = float(os.environ.get("CVMONITOR_SEGMENT_THRESHOLD", "0.95"))
+            spotting_ocr = os.environ.get("CVMONITOR_OCR_SPOTTING", "TRUE")=='TRUE'
             threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD", "0.2"))
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
@@ -216,7 +217,16 @@ class ComputerVision:
             segments = data["segments"]
             if len(segments) == 0:
                 return json.dumps([]), 200, {"content-type": "application/json"}
-            texts = self.model_ocr.ocr(segments, image, threshold)
+            if spotting_ocr:
+                expected_boxes = []
+                for segment in segments:
+                    expected_boxes.append({
+                        'bbox': [segment['left'],segment['top'],segment['right'],segment['bottom']],
+                        'name': segment['name']
+                    })
+                texts, boxes, scores, _ = self.text_spotting.forward(image,expected_boxes=expected_boxes)
+            else:
+                texts = self.model_ocr.ocr(segments, image, threshold)
             results = []
 
             for s, t in zip(segments, texts):

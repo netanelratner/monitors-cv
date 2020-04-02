@@ -67,7 +67,7 @@ def test_ocr_with_segments(client):
     }
     res = client.post(url_for('cv.run_ocr'), json=data)
     assert res.json == [{'name': '0', 'value': '52'}, {'name': '1', 'value': '15'}, {
-        'name': '2', 'value': '93'}, {'name': '3', 'value': '115'}, {'name': '4', 'value': '45'}]
+        'name': '2', 'value': '93'}, {'name': '3', 'value': '1151'}, {'name': '4', 'value': '45'}]
 
 def test_ocr_no_segments(client):
     bbox_list = np.load(open(os.path.dirname(__file__)+'/data/11_recs.npy', 'rb'))

@@ -112,8 +112,6 @@ def rotate_image(image, rotation):
         image = cv2.rotate(image, cv2.ROTATE_180)
     return image
 
-    return image
-
 
 
 def get_oriented_image(im_file, use_exif=True, use_qr=False, detected_qrcode=None, qrprefix=''):
