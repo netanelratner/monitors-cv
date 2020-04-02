@@ -163,3 +163,96 @@ def align_by_qrcode(image : np.ndarray, detected_qrcode, qrsize=100, boundery = 
     height = int(np.ceil(max(res[1,:]))) #+ int(np.floor(min(res[1,:])))
     warped = cv2.warpPerspective(image, M,(width,height))
     return warped, M
+
+
+def align_by_4_corners(image, corners, shape_out=(1280,768), margin_percent=0.1):
+    """
+    Rescale an Image given its corners.
+    outer_margin is the margin outside these points
+    """
+
+    #FIXME: currently does not work well
+
+    # verify corners order
+    src_pts=order_points(corners).astype(np.float32)
+
+    # calculate wanted screen corners in warped image
+
+    height_screen = shape_out[0]
+    width_screen = shape_out[1]
+
+    margin_x = int(width_screen * margin_percent)
+    margin_y = int(height_screen* margin_percent)
+
+    tgt_pts = np.float32([[margin_x, margin_y], # tl
+                          [width_screen-margin_x, margin_y], # tr
+                          [width_screen-margin_x, height_screen-margin_y], # br
+                          [margin_x, height_screen-margin_y]])# bl
+
+
+    # calculate perspective transformation
+    M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
+
+
+    # calculate transformed image corners
+    height_in = image.shape[0]
+    width_in = image.shape[1]
+
+    #shape_pts - size of image at the end
+    shape_pts = np.array([[0, 0], [width_in, 0], [width_in, height_in], [0.0, height_in]], np.float32)
+
+    # warp image corners
+    res = M @ np.concatenate([shape_pts, np.ones((4, 1))], 1).transpose()
+    # x = cv2.perspectiveTransform(np.array(shape_pts), M)
+    for r in range(4):
+        res[:, r] /= res[-1, r]
+    # width = int(np.ceil(max(res[0, :])))  # + int(np.floor(min(res[0,:])))
+    # height = int(np.ceil(max(res[1, :])))  # + int(np.floor(min(res[1,:])))
+    # warped = cv2.warpPerspective(image, M, (width, height))
+    warped = cv2.warpPerspective(image, M, (height_screen, width_screen))
+    # warped = warped[1:int(verti_length)+1,1:int(horiz_length)+1]
+
+    return warped, M
+
+
+# def align_by_4_corners(image, corners, margin_percent=0):
+#     """
+#     Rescale an Image given its corners.
+#     outer_margin is the margin outside these points
+#     """
+#     width = image.shape[1]
+#     height = image.shape[0]
+#     margin_x = width * margin_percent /100
+#     margin_y = height* margin_percent /100
+#
+#     src_pts = order_points(corners).astype(np.float32)
+#
+#     #src_pts = monitor corners - margins
+#     # src_pts = np.float32([[corners[0], corners[1]],
+#     #                       [corners[2], corners[3]],
+#     #                       [corners[4], corners[5]],
+#     #                       [corners[6], corners[7]]])
+#
+#     #tgt_pts = size of monitor + boundaries
+#     horiz_length = np.sqrt(pow((corners[0]-corners[2]),2)+pow((corners[1]-corners[3]),2)) + 2*margin_x
+#     verti_length = np.sqrt(pow((corners[0]-corners[6]),2)+pow((corners[1]-corners[7]),2)) + 2*margin_y
+#
+#     tgt_pts=np.float32([[0, 0],
+#                        [horiz_length, 0],
+#                        [horiz_length, verti_length],
+#                        [0, verti_length]])
+#
+#     #shape_pts - size of image at the end
+#     shape_pts = np.array([[0, 0], [width, 0], [width, height], [0.0, height]], np.float32)
+#
+#     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
+#     res = M @ np.concatenate([shape_pts, np.ones((4, 1))], 1).transpose()
+#     for r in range(4):
+#         res[:, r] /= res[-1, r]
+#     width = int(np.ceil(max(res[0, :])))  # + int(np.floor(min(res[0,:])))
+#     height = int(np.ceil(max(res[1, :])))  # + int(np.floor(min(res[1,:])))
+#     warped = cv2.warpPerspective(image, M, (width, height))
+#     warped = warped[1:int(verti_length)+1,1:int(horiz_length)+1]
+#     return warped, M
+
+

@@ -21,13 +21,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 SEGMENTS_TYPES = {
-     "Heart Rate": True,
-     "SpO2": True,
-     "RR": True,
-     "IBP": True,
-     "NIBP": True,
-     "Temp": True,
-     "etC02": True,
+
+     # ivac
+     "Medication Name": False,
+     "Volume Left to Infuse": True,
+     "Volume to Insert": True,
+     "Infusion Rate": True,
+
+    # respirator
      "Ventilation Mode": False,
      "Tidal Volume": True,
      "Expiratory Tidal Volume": True,
@@ -39,10 +40,18 @@ SEGMENTS_TYPES = {
      "Arterial Line": True,
      "I:E Ratio": True,
      "Inspiratory Time": True,
-     "Medication Name": False,
-     "Volume Left to Infuse": True,
-     "Volume to Insert": True,
-     "Infusion Rate": True,
+
+    # monitor
+    "Heart Rate": True,
+    "SpO2": True,
+    "RR": True,
+    "IBP-Systole": True,
+    "IBP-Diastole": True,
+    "NIBP-Systole": True,
+    "NIBP-Diastole": True,
+    "Temp": True,
+    "etCO2": True,
+
 }
 
 
