@@ -92,7 +92,7 @@ services:
       - mongo
       - jaeger
   frontend:
-      image: registry.gitlab.com/or2511/covid-frontend:version-1-0-1
+      image: registry.gitlab.com/or2511/covid-frontend:version-1-0-2
       restart: always
       ports:
         - "4200:4200"
