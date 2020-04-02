@@ -29,10 +29,10 @@ class ComputerVision:
         
         prob_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_PROB_THRESHOLD', '0.3'))
         max_seq_len=int(os.environ.get('CVMONITOR_SPOTTIRNG_MAX_SEQ_LEN', '10'))
-        iou_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_IOU_THRESHOLD', '0.4'))
+        iou_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_IOU_THRESHOLD', '0.01'))
         sportting_model=os.environ.get('CVMONITOR_SPOTTIRNG_MODEL_TYPE', 'FP32')
 
-        self.text_spotting = text_spotting.Model(prob_threshold=iou_threshold, max_seq_len=max_seq_len, iou_threshold=prob_threshold, model_type=sportting_model)
+        self.text_spotting = text_spotting.Model(prob_threshold=prob_threshold, max_seq_len=max_seq_len, iou_threshold=iou_threshold, model_type=sportting_model)
 
         @self.blueprint.route("/ping/")
         def ping():

@@ -224,7 +224,6 @@ class Model():
 
         boxes[:, 0::2] /= scale_x
         boxes[:, 1::2] /= scale_y
-
         matches = []
         if expected_boxes:
             tt = time.time()
