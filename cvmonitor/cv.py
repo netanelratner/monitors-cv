@@ -27,7 +27,7 @@ class ComputerVision:
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
         
-        prob_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_PROB_THRESHOLD', '0.5'))
+        prob_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_PROB_THRESHOLD', '0.3'))
         max_seq_len=int(os.environ.get('CVMONITOR_SPOTTIRNG_MAX_SEQ_LEN', '10'))
         iou_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_IOU_THRESHOLD', '0.4'))
         sportting_model=os.environ.get('CVMONITOR_SPOTTIRNG_MODEL_TYPE', 'FP32')

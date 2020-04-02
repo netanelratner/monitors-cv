@@ -113,7 +113,7 @@ def match_boxes(expected, actual):
 
 class Model():
 
-    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.5, max_seq_len=10, iou_threshold=0.4, model_type='FP32', rgb2bgr=True):
+    def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.3, max_seq_len=10, iou_threshold=0.4, model_type='FP32', rgb2bgr=True):
 
         assert (model_type == 'FP32') or (model_type == 'FP16')
 
@@ -271,6 +271,7 @@ class Model():
             hidden = np.zeros(self.hidden_shape)
             prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
+            device_name_params = {}
             try:  # if expected_boxes:
                 name = names[k]
                 device_name_params = self.device_names[name]
@@ -293,13 +294,13 @@ class Model():
 
             if expected_boxes and (name is not None):
                 # treat decimal digits
-                if 'num_digits_after_point' in device_name_params.keys():
+                if device_name_params and 'num_digits_after_point' in device_name_params.keys():
                     dot_index = len(text) - device_name_params['num_digits_after_point']
                     text = text[:dot_index] + '.' + text[dot_index:]
 
                 # verify text values
                 # cast text type
-                dtype = device_name_params['dtype']
+                dtype = device_name_params.get('dtype')
 
                 if dtype == 'int' or dtype == 'float':
 
