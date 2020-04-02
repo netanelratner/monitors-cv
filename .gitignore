@@ -7,5 +7,6 @@ __pycache__/**
 id_rsa*
 compose/database/prom/data/**
 comopse/database/grafana/data/**/*
+compose/database/mongo/**
 build/
 cvmonitor/ocr/PreTrained/**
