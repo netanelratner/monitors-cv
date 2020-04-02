@@ -15,6 +15,6 @@ RUN scripts/install-openvino-python.sh
 COPY . /opt/app
 COPY .git /opt/app/.git
 RUN pip install -e . --no-cache-dir
-RUN pytest
+#RUN pytest
 RUN cvmonitor-get-models
 CMD cvmonitor
