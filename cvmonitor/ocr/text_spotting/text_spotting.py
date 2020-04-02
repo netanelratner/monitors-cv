@@ -266,11 +266,15 @@ class Model():
             hidden = np.zeros(self.hidden_shape)
             prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
-            field = fields[k]
-            device_field_params = self.device_fields[field]
+            if expected_boxes:
+                field = fields[k]
+                device_field_params = self.device_fields[field]
+                max_seq_len = device_field_params['max_len']
+            else:
+                max_seq_len = self.max_seq_len
 
             text = ''
-            for i in range(device_field_params['max_len']):
+            for i in range(max_seq_len):
                 decoder_output = self.text_dec_exec_net.infer({
                     'prev_symbol': prev_symbol_index,
                     'prev_hidden': hidden,
@@ -282,22 +286,28 @@ class Model():
                 text += alphabet[prev_symbol_index]
                 hidden = decoder_output['hidden']
 
-            # treat decimal digits
-            if 'num_digits_after_point' in device_field_params.keys():
-                dot_index = len(text) - device_field_params['num_digits_after_point']
-                text = text[:dot_index] + '.' + text[dot_index:]
+            if expected_boxes:
+                # treat decimal digits
+                if 'num_digits_after_point' in device_field_params.keys():
+                    dot_index = len(text) - device_field_params['num_digits_after_point']
+                    text = text[:dot_index] + '.' + text[dot_index:]
 
-            # verify text values
-            # cast text type
-            dtype = device_field_params['dtype']
-            if dtype == 'int' or dtype == 'float':
-                val = eval('{}({})'.format(dtype, text))
+                # verify text values
+                # cast text type
+                dtype = device_field_params['dtype']
 
-                if (device_field_params['min'] is not None) and (val < device_field_params['min']) \
-                    or \
-                    (device_field_params['max'] is not None) and (val > device_field_params['max']):
+                if dtype == 'int' or dtype == 'float':
 
-                    text = 'NaN'
+                    if not text.isnumeric(): # text must be int or float
+                        text = 'NaN'
+
+                    val = eval('{}({})'.format(dtype, text))
+
+                    if (device_field_params['min'] is not None) and (val < device_field_params['min']) \
+                        or \
+                        (device_field_params['max'] is not None) and (val > device_field_params['max']):
+
+                        text = 'NaN'
 
             texts.append(text)
             log.info(f'detected {text}: {scores[k]} {boxes[k]}')

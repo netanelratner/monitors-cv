@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 from cvmonitor.ocr.text_spotting import text_spotting
@@ -204,12 +205,19 @@ def process_annotation_dict(ann_dict):
 
 if __name__ == '__main__':
 
-    ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
+    # ann_file = None
+    # img_path = 'cvmonitor/test/data/11.jpg'
 
-    img_path = 'cvmonitor/test/data/11.jpg'
+    ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
     img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
 
+
+    output_dir = 'cvmonitor/ocr/scripts/output'
+    os.makedirs(output_dir, exist_ok=True)
+    img_name = os.path.basename(img_path).split('.')[0]
+
     predict_on_warped = False
+    display = False
 
     # model parameters
     visualize = True
@@ -223,44 +231,61 @@ if __name__ == '__main__':
     img = cv2.imread(img_path, -1)
 
     # read annotations
-    ann = read_annotation_file(ann_file)
+    if ann_file is not None:
 
-    # get screen corners
-    ann_screen = ann.pop('screen', None)
-    if ann_screen is not None:
+        ann = read_annotation_file(ann_file)
 
-        # get annotation corners
-        corners_ann = ann_screen['corners']
+        # get screen corners
+        ann_screen = ann.pop('screen', None)
+        if ann_screen is not None:
 
-        # change corners type
-        corners = change_corners_type(corners_ann, type_in='xxyy', type_out='xyxy')
+            # get annotation corners
+            corners_ann = ann_screen['corners']
 
-        # align img and annotions by corners
-        img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.1)
+            # change corners type
+            corners = change_corners_type(corners_ann, type_in='xxyy', type_out='xyxy')
 
-        # note that bounding boxes need not be aligned, since they will be taken from the aligned image
+            # align img and annotions by corners
+            img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
 
-        # cv2.imshow('image', img)
-        # cv2.imshow('warped', img_warped)
-        # cv2.waitKey(0)
+            # note that bounding boxes need not be aligned, since they will be taken from the aligned image
 
+            # cv2.imshow('image', img)
+            # cv2.imshow('warped', img_warped)
+            # cv2.waitKey(0)
+
+            # get expected boxes
+            expected_boxes = process_annotation_dict(ann)
+    else:
+        expected_boxes = None
 
     # load model
     model = text_spotting.Model(visualize=visualize, prob_threshold=prob_threshold, max_seq_len=max_seq_len, iou_threshold=iou_threshold, model_type=model_type, rgb2bgr=rgb2bgr)
 
-    # get expected boxes
-    expected_boxes = process_annotation_dict(ann)
-    # expected_boxes = None
 
     # predict text
     texts, boxes, scores, frame = model.forward(img, expected_boxes=expected_boxes)
 
-    cv2.imshow('Results', frame)
+    # save output
+    out_name = os.path.join(output_dir, img_name + '.png')
+    cv2.imwrite(out_name, frame)
+
+
+    if display:
+        cv2.imshow('Results', frame)
 
     if predict_on_warped:
+        expected_boxes = None
         texts, boxes, scores, frame = model.forward(img_warped, expected_boxes=expected_boxes)
-        cv2.imshow('Results Warped', frame)
 
-    cv2.waitKey(0)
+        # save output
+        out_name = os.path.join(output_dir, img_name + '_warped.png')
+        cv2.imwrite(out_name, frame)
+
+        if display:
+            cv2.imshow('Results Warped', frame)
+
+    if display:
+        cv2.waitKey(0)
 
     print('Done!')
