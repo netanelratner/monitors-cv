@@ -26,7 +26,13 @@ class ComputerVision:
         self.blueprint = Blueprint("cv", __name__)
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
-        self.text_spotting = text_spotting.Model()
+        
+        prob_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_PROB_THRESHOLD', '0.5'))
+        max_seq_len=int(os.environ.get('CVMONITOR_SPOTTIRNG_MAX_SEQ_LEN', '10'))
+        iou_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_IOU_THRESHOLD', '0.25'))
+        sportting_model=os.environ.get('CVMONITOR_SPOTTIRNG_MODEL_TYPE', 'FP32')
+
+        self.text_spotting = text_spotting.Model(prob_threshold=iou_threshold, max_seq_len=max_seq_len, iou_threshold=prob_threshold, model_type=sportting_model)
 
         @self.blueprint.route("/ping/")
         def ping():

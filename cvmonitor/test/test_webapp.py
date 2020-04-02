@@ -87,3 +87,26 @@ def test_ocr_no_segments(client):
     for i in range(len(best_matches)):
         assert text_spotting.iou(box_res[i], box_expected[best_matches[i]]) > 0.75
         assert expected[best_matches[i]]['value'] in segments[i]['value'] 
+
+def test_bad_bb(client):
+    image = open(os.path.dirname(__file__)+'/data/11.jpg', 'rb').read()
+    image_buffer = base64.encodebytes(image).decode()
+    data = {
+        'image': image_buffer,
+        'segments': [{'left': 0, 'top':0, 'right':1, 'bottom':1, 'name':'RR'}]
+    }
+    res = client.post(url_for('cv.run_ocr'), json=data)
+    assert res.json == [{'name': 'RR', 'value': None}]
+
+
+def test_ocr_with_partial_segments(client):
+    image = open(os.path.dirname(__file__)+'/data/11.jpg', 'rb').read()
+    bbox_list = np.load(open(os.path.dirname(__file__)+'/data/11_recs.npy', 'rb'))
+    image_buffer = base64.encodebytes(image).decode()
+    data = {
+        'image': image_buffer,
+        'segments': [{'left': int(s[0]), 'top':int(s[1]), 'right':int(s[2]), 'bottom':int(s[3]), 'name':str(i)} for i, s in enumerate(bbox_list[:-2])]
+    }
+    res = client.post(url_for('cv.run_ocr'), json=data)
+    assert res.json == [{'name': '0', 'value': '52'}, {'name': '1', 'value': '15'}, {
+        'name': '2', 'value': '93'}]

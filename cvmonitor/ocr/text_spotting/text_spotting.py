@@ -218,6 +218,7 @@ class Model():
         boxes[:, 0::2] /= scale_x
         boxes[:, 1::2] /= scale_y
 
+        matches = []
         if expected_boxes:
             tt = time.time()
             initial_scores = scores
@@ -230,23 +231,26 @@ class Model():
             boxes = []
             raw_masks = []
             text_features = []
-            matches = []
             best_matches, match_score = match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
             for i,(match, score)  in enumerate(zip(best_matches, match_score)):
                 log.info(f'box: {initial_boxes[match]} scored iou of {score}')
+                scores.append(initial_scores[match])
+                classes.append(initial_classes[match])
+                boxes.append(initial_boxes[match])
+                raw_masks.append(initial_raw_masks[match])
+                text_features.append(initial_text_features[match])
                 if score > self.iou_threshold:
-                    scores.append(initial_scores[match])
-                    classes.append(initial_classes[match])
-                    boxes.append(initial_boxes[match])
-                    raw_masks.append(initial_raw_masks[match])
-                    text_features.append(initial_text_features[match])
                     matches.append(match)
+                else:
+                    matches.append(None)
             log.info(f' Time Spent on trimming: {(time.time()-tt)*1000} ms')
         texts = []
         alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
         for k, feature in enumerate(text_features):
 
-
+            if matches and matches[k]==None:
+                texts.append(None)
+                break
             feature = self.text_enc_exec_net.infer({'input': feature})['output']
             feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
             feature = np.transpose(feature, (0, 2, 1))
