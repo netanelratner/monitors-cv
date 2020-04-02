@@ -19,7 +19,7 @@ from . import __version__
 
 class Server:
 
-    def __init__(self,log_level):
+    def __init__(self,log_level=logging.DEBUG):
         self.app = Flask(__name__)
         self.app.logger.setLevel(log_level)
         self.metrics = PrometheusMetrics(self.app)
