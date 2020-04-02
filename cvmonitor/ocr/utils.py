@@ -6,6 +6,24 @@ def get_device_names():
     device_names = {}
 
     device_names =  {
+                     # ivac
+                     'Medication Name': {'max_len': 10, 'dtype': 'str'},
+                     'Volume Left to Infuse':  {'max_len': 3, 'min': 10, 'max': None, 'dtype': 'int'},
+                     'Volume to Insert':  {'max_len': 3, 'min': 10, 'max': None, 'dtype': 'int'},
+                     'Infusion Rate':  {'max_len': 4, 'min': 0, 'max': None, 'dtype': 'float', 'num_digits_after_point': 1},
+
+                     # respirator
+                     'Ventilation Mode': {'max_len': 10, 'dtype': 'str'},
+                     'Tidal Volume': {'max_len': 3, 'min': 350, 'max': 600, 'dtype': 'int'},
+                     'Expiratory Tidal Volume': {'max_len': 3, 'min': None, 'max': None, 'dtype': 'int'},
+                     'Rate': {'max_len': 2, 'min': 10, 'max': 40, 'dtype': 'int'},
+                     'Total Rate': {'max_len': 2, 'min': 10, 'max': 40, 'dtype': 'int'},
+                     'Peep': {'max_len': 2, 'min': None, 'max': None, 'dtype': 'int'},
+                     'Ppeak': {'max_len': 2, 'min': None, 'max': 40, 'dtype': 'int'},
+                     'FIO2': {'max_len': 3, 'min': None, 'max': None, 'dtype': 'int'},
+                     'I:E Ratio': {'max_len': 2, 'min': None, 'max': None, 'dtype': 'float', 'num_digits_after_point': 1}, # FIXME: assume that operator selects only X.X part, without the digit 1
+                     'Inspiratory time': {'max_len': 2, 'min': None, 'max': None, 'dtype': 'float', 'num_digits_after_point': 1},
+
                      # monitor
                      'Heart Rate': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
                      'SpO2': {'max_len': 3, 'min': 90, 'max': None, 'dtype': 'int'},
@@ -20,11 +38,6 @@ def get_device_names():
                      # for annotations only, currently not found in android app
                      'hr_saturation': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
 
-                     # respirator
-                     # TODO
-
-                     # ivac
-                     # TODO
                      }
 
     return device_names
@@ -40,7 +53,7 @@ def annotation_names_mapping():
     names2anns = {}
 
     names2anns['hr'] = 'Heart Rate'
-    names2anns['hr_saturation'] = None
+    names2anns['hr_saturation'] = 'hr_saturation'
     names2anns['spo2'] = 'SpO2'
     names2anns['rr'] = 'RR'
     names2anns['bp_1'] = 'IBP-Systole'

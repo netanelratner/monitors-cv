@@ -153,16 +153,11 @@ name_list = [
  "אורלי לוי-אבקסיס"
 ]
 
-monitor = {
-     "Heart Rate": lambda: random.randint(45, 120),
-     "SpO2": lambda: random.randint(10, 100),
-     "RR": lambda: random.randint(10, 100),
-     "IBP-Systole": lambda: random.randint(10, 100),
-     "IBP-Diastole": lambda: random.randint(10, 100),
-     "NIBP-Systole": lambda: random.randint(10, 100),
-     "NIBP-Diastole": lambda: random.randint(10, 100),
-     "Temp": lambda: random.randint(10, 100),
-     "etCO2": lambda: random.randint(10, 100),
+ivac = {
+     "Medication Name": lambda: random.choice(['MEDI', "WINE", "COFFE", "BEER"]),
+     "Volume Left to Infuse": lambda: random.randint(10, 13),
+     "Volume to Insert": lambda: random.randint(10, 13),
+     "Infusion Rate": lambda: random.randint(10, 13),
 }
 
 respirator = {
@@ -174,16 +169,20 @@ respirator = {
      "Peep": lambda: random.randint(10, 100),
      "Ppeek": lambda: random.randint(10, 100),
      "FIO2": lambda: random.randint(10, 100),
-     "Arterial Line": lambda: random.randint(10, 100),
      "I:E Ratio": lambda: random.randint(10, 100),
      "Inspiratory Time": lambda: random.randint(10, 100),
 }
 
-ivac = {
-     "Medication Name": lambda: random.choice(['MEDI', "WINE", "COFFE", "BEER"]),
-     "Volume Left to Infuse": lambda: random.randint(10, 13),
-     "Volume to Insert": lambda: random.randint(10, 13),
-     "Infusion Rate": lambda: random.randint(10, 13),
+monitor = {
+     "Heart Rate": lambda: random.randint(45, 120),
+     "SpO2": lambda: random.randint(10, 100),
+     "RR": lambda: random.randint(10, 100),
+     "IBP-Systole": lambda: random.randint(10, 100),
+     "IBP-Diastole": lambda: random.randint(10, 100),
+     "NIBP-Systole": lambda: random.randint(10, 100),
+     "NIBP-Diastole": lambda: random.randint(10, 100),
+     "Temp": lambda: random.randint(10, 100),
+     "etCO2": lambda: random.randint(10, 100),
 }
 
 devices = {
