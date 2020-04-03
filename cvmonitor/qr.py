@@ -20,9 +20,9 @@ np.set_printoptions(precision=3)
 
 def generate_pdf(pdf_file, title, ncols, nrows):
     if not nrows:
-        nrows = int(os.environ.get("CVMOINTOR_QR_PDF_ROWS", 6))
+        nrows = int(os.environ.get("CVMONITOR_QR_PDF_ROWS", 6))
     if not ncols:
-        ncols = int(os.environ.get("CVMOINTOR_QR_PDF_COLS", 4))
+        ncols = int(os.environ.get("CVMONITOR_QR_PDF_COLS", 4))
     with PdfPages(pdf_file) as pdf:
         index = 0
         fig, axarr = plt.subplots(nrows, ncols, figsize=[8, 11])

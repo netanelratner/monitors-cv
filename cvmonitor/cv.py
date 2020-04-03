@@ -247,7 +247,7 @@ class ComputerVision:
             )
 
             spotting_ocr = os.environ.get("CVMONITOR_OCR_SPOTTING", "TRUE") == "TRUE"
-            threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD", "0.2"))
+            threshold = float(os.environ.get("CVMONITOR_SERVER_OCR_THRESHOLD", "0.8"))
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
             if not self.model_ocr:
@@ -296,9 +296,10 @@ class ComputerVision:
             else:
                 texts, scores = self.model_ocr.ocr(expected_boxes, image, threshold)
             for eb, text, score in zip(expected_boxes, texts, scores):
-                segments[eb["index"]]["value"] = text
-                segments[eb["index"]]["score"] = float(score)
-                segments[eb["index"]]["source"] = "server"
+                if score > threshold:
+                    segments[eb["index"]]["value"] = text
+                    segments[eb["index"]]["score"] = float(score)
+                    segments[eb["index"]]["source"] = "server"
 
             logging.debug(f"Detections: {segments}")
             return json.dumps(segments), 200, {"content-type": "application/json"}
