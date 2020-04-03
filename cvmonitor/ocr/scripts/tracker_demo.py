@@ -14,6 +14,7 @@ FPS = 30.0
 # scenarioPath = '/media/dalya/data/DataSets/CV4Corona/Dataset300320_0600/BneiZion5_1/'
 # scenarioPath = '/media/dalya/data/DataSets/CV4Corona/Dataset300320_0600/BneiZion6/'
 scenarioPath = '/media/dalya/data/DataSets/CV4Corona/Dataset300320_0600/Rambam1/'
+scenarioPath = '/home/moshe/projects/monitors-cv/cvmonitor/test/data'
 
 # Find all images and sort them
 imagesList = os.listdir(scenarioPath)

@@ -9,6 +9,7 @@ import os
 import base64
 import qrcode
 import logging
+import time
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
@@ -16,9 +17,10 @@ from prometheus_client import Summary
 import pytesseract
 from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
-from .image_align import get_oriented_image, align_by_qrcode
+from .image_align import get_oriented_image, align_by_qrcode, align_by_4_corners
 from .ocr.text_spotting import text_spotting
 from cvmonitor.ocr.utils import get_fields_info, is_text_valid
+from cvmonitor.ocr.corners_tracker import track_corners
 
 np.set_printoptions(precision=3)
 
@@ -147,9 +149,17 @@ class ComputerVision:
             try:
                 corners = json.loads(request.headers.get('X-CORNERS'))
             except:
+                corners = None
                 pass
             use_exif = os.environ.get("CVMONITOR_ORIENT_BY_EXIF", "TRUE") == "TRUE"
             use_qr = os.environ.get("CVMONITOR_ORIENT_BY_QR", "FALSE") == "TRUE"
+            # FIXME: add following parameters to where all parameters are configured
+            use_corners = os.environ.get("CVMONITOR_ORIENT_BY_CORNERS", "TRUE") == "TRUE" # FIXME: add parameter
+            aligned_image_size = os.environ.get("CVMONITOR_ALIGNED_IMAGE_SIZW", (1280, 768))  # FIXME: add parameter
+            align_margin_percent = os.environ.get("CVMONITOR_ALIGN_MARGIN_PERCENT", 10)  # FIXME: add parameter
+            use_corners_tracker = os.environ.get("CVMONITOR_USE_CORNERS_TRACKER", "TRUE") == "TRUE"  # FIXME: add parameter
+            time_stamp_tracker = time.time()  # [sec] FIXME: there should be time_stamp_tracker should be managed to each device!
+            # FIXME END
             qrprefix = str(os.environ.get("CVMONITOR_QR_PREFIX", "cvmonitor"))
             qrsize = int(os.environ.get("CVMONITOR_QR_TARGET_SIZE", 100))
             boundery = float(os.environ.get("CVMONITOR_QR_BOUNDERY_SIZE", 50))
@@ -170,20 +180,33 @@ class ComputerVision:
                 with open("original_image.jpg", "wb") as f:
                     f.write(imdata)
 
-            if detected_qrcode is None:
-                if align_image_by_qr:
-                    abort(
-                        400,
-                        "Could not align the image by qr code, no such code detected",
-                    )
-            else:
-                headers["X-MONITOR-ID"] = detected_qrcode.data.decode()
+            # align image by screen corners
+            if use_corners and (corners is not None):
 
-            if align_image_by_qr:
-                logging.debug("Trying to align image by qr code")
-                image, _ = align_by_qrcode(
-                    image, detected_qrcode, qrsize, boundery, qrprefix
+                if use_corners_tracker:
+                    # FIXME: there should be time_stamp_tracker should be managed to each device!
+                    corners = track_corners(image, time_stamp_tracker, points=corners)
+
+                image = align_by_4_corners(
+                    image, corners, new_image_size=aligned_image_size, margin_percent=align_margin_percent
                 )
+
+            else:
+
+                if detected_qrcode is None:
+                    if align_image_by_qr:
+                        abort(
+                            400,
+                            "Could not align the image by qr code, no such code detected",
+                        )
+                else:
+                    headers["X-MONITOR-ID"] = detected_qrcode.data.decode()
+
+                if align_image_by_qr:
+                    logging.debug("Trying to align image by qr code")
+                    image, _ = align_by_qrcode(
+                        image, detected_qrcode, qrsize, boundery, qrprefix
+                    )
 
             if save_after_align:
                 imageio.imwrite("aligned_image.jpg", image)
