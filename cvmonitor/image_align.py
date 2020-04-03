@@ -165,94 +165,83 @@ def align_by_qrcode(image : np.ndarray, detected_qrcode, qrsize=100, boundery = 
     return warped, M
 
 
-def align_by_4_corners(image, corners, shape_out=(1280,768), margin_percent=0.1):
+def align_by_4_corners(image, corners, new_image_size = (1280, 768), margin_percent=10):
     """
-    Rescale an Image given its corners.
-    outer_margin is the margin outside these points
+    warp an image so the screen is aligned, and then crop the screen (with desired margin), and resize it to a desired size
+
+    params:
+    image - input screen image
+    corners - screen coordinates on image 4 pairs of [x, y]
+    new_image_size - tuple of (width, height) of the output patch
+    margin_percent - margin percentage (from 0% to 40%) around the screen
+
+    returns:
+    warped_cropped - cropped patch after resize
+    M - perspective transformation of the image
     """
 
-    #FIXME: currently does not work well
+    # check if margin percent is feasible
+    if margin_percent > 40 or margin_percent < 0 :
+        print('margin percent is illegal')
+        warped = []
+        M = []
+        return warped, M
 
-    # verify corners order
-    src_pts=order_points(corners).astype(np.float32)
+    width = image.shape[1]
+    height = image.shape[0]
 
-    # calculate wanted screen corners in warped image
+    # src_pts = screen corners
+    src_pts = order_points(corners).astype(np.float32)  # [top_left, top_right, bottom_right, bottom_left]
 
-    height_screen = shape_out[0]
-    width_screen = shape_out[1]
+    top = min(src_pts[0, 1], src_pts[1, 1])
+    bottom = max(src_pts[2, 1], src_pts[3, 1])
+    left = min(src_pts[0, 0], src_pts[3, 0])
+    right = max(src_pts[1, 0], src_pts[2, 0])
 
-    margin_x = int(width_screen * margin_percent)
-    margin_y = int(height_screen* margin_percent)
+    # tgt_pts = desired coordinates of the screen
+    tgt_pts = np.float32([[left, top],
+                          [right, top],
+                          [right, bottom],
+                          [left, bottom]])
 
-    tgt_pts = np.float32([[margin_x, margin_y], # tl
-                          [width_screen-margin_x, margin_y], # tr
-                          [width_screen-margin_x, height_screen-margin_y], # br
-                          [margin_x, height_screen-margin_y]])# bl
+    # find screen size after transformation
+    screen_width = right - left
+    screen_height = bottom - top
 
+    # find cropped patch size after transformation (including margin)
+    patch_width = screen_width / (1 - 2 * margin_percent / 100)
+    patch_height =  screen_height / (1 - 2 * margin_percent / 100)
 
-    # calculate perspective transformation
+    # find margin in pixels from each size
+    width_marg_pix = (patch_width - screen_width) / 2
+    height_marg_pix = (patch_height - screen_height) / 2
+
+    # shape_pts - size of image at the end
+    shape_pts = np.array([[0, 0], [width, 0], [width, height], [0.0, height]], np.float32)
+
+    # find transformation matrix which transforms screen corner to a rectangle
     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
 
-
-    # calculate transformed image corners
-    height_in = image.shape[0]
-    width_in = image.shape[1]
-
-    #shape_pts - size of image at the end
-    shape_pts = np.array([[0, 0], [width_in, 0], [width_in, height_in], [0.0, height_in]], np.float32)
-
-    # warp image corners
+     # find the transformation of image corner to get the size of the new image
     res = M @ np.concatenate([shape_pts, np.ones((4, 1))], 1).transpose()
-    # x = cv2.perspectiveTransform(np.array(shape_pts), M)
-    for r in range(4):
-        res[:, r] /= res[-1, r]
-    # width = int(np.ceil(max(res[0, :])))  # + int(np.floor(min(res[0,:])))
-    # height = int(np.ceil(max(res[1, :])))  # + int(np.floor(min(res[1,:])))
-    # warped = cv2.warpPerspective(image, M, (width, height))
-    warped = cv2.warpPerspective(image, M, (height_screen, width_screen))
-    # warped = warped[1:int(verti_length)+1,1:int(horiz_length)+1]
+    norm_res = res[:-1, :]/[res[-1, :], res[-1, :]]  # normalize coordinates by last row
 
-    return warped, M
+    # warp image according to the transformation
+    dest_width = int(np.ceil(max(norm_res[0, :])))
+    dest_height = int(np.ceil(max(norm_res[1, :])))
+    warped = cv2.warpPerspective(image, M, (dest_width, dest_height))
 
+    # crop screen from image including margin
+    crop_top = max(int(top - height_marg_pix), 0)
+    crop_bottom = min(int(bottom + height_marg_pix + 1), dest_height)
+    crop_left = max(int(left - width_marg_pix), 0)
+    crop_right = min(int(right + width_marg_pix + 1), dest_width)
+    warped_cropped = warped[crop_top : crop_bottom, crop_left : crop_right]
 
-# def align_by_4_corners(image, corners, margin_percent=0):
-#     """
-#     Rescale an Image given its corners.
-#     outer_margin is the margin outside these points
-#     """
-#     width = image.shape[1]
-#     height = image.shape[0]
-#     margin_x = width * margin_percent /100
-#     margin_y = height* margin_percent /100
-#
-#     src_pts = order_points(corners).astype(np.float32)
-#
-#     #src_pts = monitor corners - margins
-#     # src_pts = np.float32([[corners[0], corners[1]],
-#     #                       [corners[2], corners[3]],
-#     #                       [corners[4], corners[5]],
-#     #                       [corners[6], corners[7]]])
-#
-#     #tgt_pts = size of monitor + boundaries
-#     horiz_length = np.sqrt(pow((corners[0]-corners[2]),2)+pow((corners[1]-corners[3]),2)) + 2*margin_x
-#     verti_length = np.sqrt(pow((corners[0]-corners[6]),2)+pow((corners[1]-corners[7]),2)) + 2*margin_y
-#
-#     tgt_pts=np.float32([[0, 0],
-#                        [horiz_length, 0],
-#                        [horiz_length, verti_length],
-#                        [0, verti_length]])
-#
-#     #shape_pts - size of image at the end
-#     shape_pts = np.array([[0, 0], [width, 0], [width, height], [0.0, height]], np.float32)
-#
-#     M = cv2.getPerspectiveTransform(src_pts, tgt_pts)
-#     res = M @ np.concatenate([shape_pts, np.ones((4, 1))], 1).transpose()
-#     for r in range(4):
-#         res[:, r] /= res[-1, r]
-#     width = int(np.ceil(max(res[0, :])))  # + int(np.floor(min(res[0,:])))
-#     height = int(np.ceil(max(res[1, :])))  # + int(np.floor(min(res[1,:])))
-#     warped = cv2.warpPerspective(image, M, (width, height))
-#     warped = warped[1:int(verti_length)+1,1:int(horiz_length)+1]
-#     return warped, M
+    # resize cropped image to an input size
+    if new_image_size:
+        warped_cropped = cv2.resize(warped_cropped, new_image_size)
+
+    return warped_cropped, M
 
 

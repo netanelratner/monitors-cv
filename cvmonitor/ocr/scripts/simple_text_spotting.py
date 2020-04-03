@@ -185,8 +185,11 @@ if __name__ == '__main__':
     os.makedirs(output_dir, exist_ok=True)
     img_name = os.path.basename(img_path).split('.')[0]
 
-    predict_on_warped = False
+    predict_on_warped = True
     display = False
+
+    aligned_image_size = (1280, 768)  # (width, height)! and NOT (rows, cols)
+    align_margin_percent = 10  # [%] valid values are 0-40
 
     # model parameters
     visualize = True
@@ -215,7 +218,8 @@ if __name__ == '__main__':
             corners = change_corners_type(corners_ann, type_in='xxyy', type_out='xyxy')
 
             # align img and annotions by corners
-            img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
+            # img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
+            img_warped, M = align_by_4_corners(img, corners, new_image_size=aligned_image_size, margin_percent=align_margin_percent)
 
             # note that bounding boxes need not be aligned, since they will be taken from the aligned image
 
@@ -248,7 +252,7 @@ if __name__ == '__main__':
         texts, boxes, scores, frame = model.forward(img_warped, expected_boxes=expected_boxes)
 
         # save output
-        out_name = os.path.join(output_dir, img_name + '_warped.png')
+        out_name = os.path.join(output_dir, img_name + '_warped_{}_{}_margin_{}.png'.format(aligned_image_size[0], aligned_image_size[1], align_margin_percent))
         cv2.imwrite(out_name, frame)
 
         if display:
