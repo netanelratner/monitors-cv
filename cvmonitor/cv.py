@@ -18,7 +18,44 @@ from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
 from .ocr.text_spotting import text_spotting
+from cvmonitor.ocr.utils import get_device_names, is_text_valid
+
 np.set_printoptions(precision=3)
+
+
+def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reprocess):
+    """
+    Create expected boxes from segments.
+    Returns the boxes to perform ocr on them. each box will have the data
+    needed to run ocr, and will contain the original segment index
+    """
+    expected_boxes = []
+    for index, segment in enumerate(segments):
+        expected = {
+            "bbox": [
+                segment["left"],
+                segment["top"],
+                segment["right"],
+                segment["bottom"],
+            ],
+            "name": segment["name"],
+            "index": index,
+        }
+        needs_ocr = True
+        if "value" in segment and "name" in segment:
+            value = segment["value"]
+            name = segment["name"]
+            device_params = devices.get(name)
+            score = segment.get("score", default_score)
+            if (
+                device_params is not None
+                and is_text_valid(value, device_params)
+                and score > min_score_to_reprocess
+            ):
+                needs_ocr = False
+        if needs_ocr:
+            expected_boxes.append(expected)
+    return expected_boxes
 
 
 class ComputerVision:
@@ -26,13 +63,22 @@ class ComputerVision:
         self.blueprint = Blueprint("cv", __name__)
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
-        
-        prob_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_PROB_THRESHOLD', '0.3'))
-        max_seq_len=int(os.environ.get('CVMONITOR_SPOTTIRNG_MAX_SEQ_LEN', '10'))
-        iou_threshold=float(os.environ.get('CVMONITOR_SPOTTIRNG_IOU_THRESHOLD', '0.01'))
-        sportting_model=os.environ.get('CVMONITOR_SPOTTIRNG_MODEL_TYPE', 'FP32')
+        self.devices = get_device_names()
+        prob_threshold = float(
+            os.environ.get("CVMONITOR_SPOTTING_PROB_THRESHOLD", "0.3")
+        )
+        max_seq_len = int(os.environ.get("CVMONITOR_SPOTTING_MAX_SEQ_LEN", "10"))
+        iou_threshold = float(
+            os.environ.get("CVMONITOR_SPOTTING_IOU_THRESHOLD", "0.01")
+        )
+        sportting_model = os.environ.get("CVMONITOR_SPOTTING_MODEL_TYPE", "FP32")
 
-        self.text_spotting = text_spotting.Model(prob_threshold=prob_threshold, max_seq_len=max_seq_len, iou_threshold=iou_threshold, model_type=sportting_model)
+        self.text_spotting = text_spotting.Model(
+            prob_threshold=prob_threshold,
+            max_seq_len=max_seq_len,
+            iou_threshold=iou_threshold,
+            model_type=sportting_model,
+        )
 
         @self.blueprint.route("/ping/")
         def ping():
@@ -177,7 +223,7 @@ class ComputerVision:
                                             format: integer
             responses:
               '200':
-                descritption: ocr results
+                description: ocr results
                 content:
                     application/json:
                       schema:
@@ -190,8 +236,17 @@ class ComputerVision:
                                 value:
                                     type: string
             """
-            segment_threshold = float(os.environ.get("CVMONITOR_SEGMENT_THRESHOLD", "0.95"))
-            spotting_ocr = os.environ.get("CVMONITOR_OCR_SPOTTING", "TRUE")=='TRUE'
+            segment_threshold = float(
+                os.environ.get("CVMONITOR_SEGMENT_THRESHOLD", "0.95")
+            )
+            device_ocr_default_score = float(
+                os.environ.get("CVMONITOR_DEVICE_OCR_DEFAULT_SCORE", "0.5")
+            )
+            device_ocr_score_threshold = float(
+                os.environ.get("CVMONITOR_DEVICE_OCR_SCORE_THRESHOLD", "0.8")
+            )
+
+            spotting_ocr = os.environ.get("CVMONITOR_OCR_SPOTTING", "TRUE") == "TRUE"
             threshold = float(os.environ.get("CVMONITOR_OCR_THRESHOLD", "0.2"))
             if not self.model_ocr:
                 self.model_ocr = monitor_ocr.build_model()
@@ -203,43 +258,50 @@ class ComputerVision:
             image = np.asarray(
                 imageio.imread(base64.decodebytes(data["image"].encode()))
             )
-            
+            # Suggest segments
             if not "segments" in data:
                 # Let's run segment detection.
                 texts, boxes, scores, _ = self.text_spotting.forward(image)
                 segments = []
-                for text, box, score in zip(texts,boxes, scores):
+                for text, box, score in zip(texts, boxes, scores):
                     if score > segment_threshold:
-                        segments.append({
-                            'value': text,
-                            'left': float(box[0]),
-                            'top': float(box[1]),
-                            'right': float(box[2]),
-                            'bottom': float(box[3]),
-                            'score': float(score),
-                        })
+                        segments.append(
+                            {
+                                "value": text,
+                                "left": float(box[0]),
+                                "top": float(box[1]),
+                                "right": float(box[2]),
+                                "bottom": float(box[3]),
+                                "score": float(score),
+                                "source": "server",
+                            }
+                        )
                 return json.dumps(segments), 200, {"content-type": "application/json"}
-
             segments = data["segments"]
             if len(segments) == 0:
                 logging.error("No segments")
                 return json.dumps([]), 200, {"content-type": "application/json"}
-            if spotting_ocr:
-                expected_boxes = []
-                for segment in segments:
-                    expected_boxes.append({
-                        'bbox': [segment['left'],segment['top'],segment['right'],segment['bottom']],
-                        'name': segment['name']
-                    })
-                texts, boxes, scores, _ = self.text_spotting.forward(image,expected_boxes=expected_boxes)
-            else:
-                texts = self.model_ocr.ocr(segments, image, threshold)
-            results = []
 
-            for s, t in zip(segments, texts):
-                results.append({"name": s["name"], "value": t})
-            logging.debug(f"Detections: {results}")
-            return json.dumps(results), 200, {"content-type": "application/json"}
+            # We will at most give results on segments:
+            expected_boxes = get_ocr_expected_boxes(
+                segments,
+                self.devices,
+                device_ocr_default_score,
+                device_ocr_score_threshold,
+            )
+            if spotting_ocr:
+                texts, boxes, scores, _ = self.text_spotting.forward(
+                    image, expected_boxes=expected_boxes
+                )
+            else:
+                texts, scores = self.model_ocr.ocr(expected_boxes, image, threshold)
+            for eb, text, score in zip(expected_boxes, texts, scores):
+                segments[eb["index"]]["value"] = text
+                segments[eb["index"]]["score"] = float(score)
+                segments[eb["index"]]["source"] = "server"
+
+            logging.debug(f"Detections: {segments}")
+            return json.dumps(segments), 200, {"content-type": "application/json"}
 
         @self.blueprint.route("/qr/<title>", methods=["GET"])
         def qr(title):

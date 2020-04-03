@@ -278,15 +278,15 @@ class ModelOCR(object):
 
         return imm
 
-    def ocr(self, segments, image, threshold, save_image_path=None):
+    def ocr(self, expected_boxes, image, threshold, save_image_path=None):
         bbox_list = []
         are_numeric = []
-        for s in segments:
-            bbox_list.append([s['left'],s['top'],s['right'],s['bottom']])
-            if s['name'] not in SEGMENTS_TYPES:
+        for box in expected_boxes:
+            bbox_list.append(box['bbox'])
+            if box['name'] not in SEGMENTS_TYPES:
                 are_numeric.append(False)
             else:
-                are_numeric.append(SEGMENTS_TYPES[s['name']])
+                are_numeric.append(SEGMENTS_TYPES[box['name']])
         texts, preds = self.detect(bbox_list, image, are_numeric, save_image_path)
         more_texts = []
         for t, p, b in zip(texts,preds,bbox_list):
@@ -294,7 +294,7 @@ class ModelOCR(object):
                 more_texts.append(texts)
             else:
                 more_texts.append(None)
-        return texts
+        return texts, preds
 
     def detect(self, bbox_list, image, is_numeric=[], save_image_path=None):
         """

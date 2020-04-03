@@ -299,8 +299,7 @@ class Model():
 
                 # verify text values
                 # cast text type
-                dtype = device_name_params.get('dtype')
-
+                is_valid = is_text_valid(text, device_name_params)
                 if not is_valid:
                     text = None
 
