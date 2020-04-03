@@ -143,6 +143,11 @@ class ComputerVision:
                         format: binary
 
             """
+            corners = []
+            try:
+                corners = json.loads(request.headers.get('X-CORNERS'))
+            except:
+                pass
             use_exif = os.environ.get("CVMONITOR_ORIENT_BY_EXIF", "TRUE") == "TRUE"
             use_qr = os.environ.get("CVMONITOR_ORIENT_BY_QR", "FALSE") == "TRUE"
             qrprefix = str(os.environ.get("CVMONITOR_QR_PREFIX", "cvmonitor"))
