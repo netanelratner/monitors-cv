@@ -34,7 +34,7 @@ from .visualizer import Visualizer
 
 from .. import get_models
 
-from cvmonitor.ocr.utils import get_device_names, is_text_valid
+from cvmonitor.ocr.utils import get_fields_info, is_text_valid
 
 SOS_INDEX = 0
 EOS_INDEX = 1
@@ -171,7 +171,7 @@ class Model():
         self.iou_threshold = iou_threshold
         self.max_seq_len = max_seq_len
         self.rgb2bgr = rgb2bgr
-        self.device_names = get_device_names()
+        self.device_names = get_fields_info()
         if track:
             self.tracker = StaticIOUTracker()
         if visualize:

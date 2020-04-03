@@ -14,45 +14,12 @@ import hashlib
 from tqdm import tqdm
 from .model import Model
 from .import get_models
+from .utils import get_fields_info
 np.set_printoptions(precision=3)
 torch.set_printoptions(precision=3)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-
-SEGMENTS_TYPES = {
-
-     # ivac
-     "Medication Name": False,
-     "Volume Left to Infuse": True,
-     "Volume to Insert": True,
-     "Infusion Rate": True,
-
-    # respirator
-     "Ventilation Mode": False,
-     "Tidal Volume": True,
-     "Expiratory Tidal Volume": True,
-     "Rate": True,
-     "Total Rate": True,
-     "Peep": True,
-     "Ppeek": True,
-     "FIO2": True,
-     "Arterial Line": True,
-     "I:E Ratio": True,
-     "Inspiratory Time": True,
-
-    # monitor
-    "Heart Rate": True,
-    "SpO2": True,
-    "RR": True,
-    "IBP-Systole": True,
-    "IBP-Diastole": True,
-    "NIBP-Systole": True,
-    "NIBP-Diastole": True,
-    "Temp": True,
-    "etCO2": True,
-
-}
 
 
 def set_parameters():
@@ -167,7 +134,7 @@ class ModelOCR(object):
 
 
         self.opt.num_class = len(self.converter.character)
-
+        self.fields_info = get_fields_info()
 
     def load_model(self, path):
 
@@ -283,10 +250,10 @@ class ModelOCR(object):
         are_numeric = []
         for box in expected_boxes:
             bbox_list.append(box['bbox'])
-            if box['name'] not in SEGMENTS_TYPES:
+            if box['name'] not in self.fields_info:
                 are_numeric.append(False)
             else:
-                are_numeric.append(SEGMENTS_TYPES[box['name']])
+                are_numeric.append((self.fields_info[box['name']]['dtype'] in ['int','float']))
         texts, preds = self.detect(bbox_list, image, are_numeric, save_image_path)
         more_texts = []
         for t, p, b in zip(texts,preds,bbox_list):

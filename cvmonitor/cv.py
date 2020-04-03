@@ -18,7 +18,7 @@ from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
 from .ocr.text_spotting import text_spotting
-from cvmonitor.ocr.utils import get_device_names, is_text_valid
+from cvmonitor.ocr.utils import get_fields_info, is_text_valid
 
 np.set_printoptions(precision=3)
 
@@ -63,7 +63,7 @@ class ComputerVision:
         self.blueprint = Blueprint("cv", __name__)
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
-        self.devices = get_device_names()
+        self.devices = get_fields_info()
         prob_threshold = float(
             os.environ.get("CVMONITOR_SPOTTING_PROB_THRESHOLD", "0.3")
         )
@@ -259,7 +259,7 @@ class ComputerVision:
                 imageio.imread(base64.decodebytes(data["image"].encode()))
             )
             # Suggest segments
-            if not "segments" in data:
+            if not data.get("segments"):
                 # Let's run segment detection.
                 texts, boxes, scores, _ = self.text_spotting.forward(image)
                 segments = []

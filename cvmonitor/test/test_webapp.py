@@ -9,7 +9,7 @@ import pytest
 from pylab import imshow, show
 from .. import cv, image_align
 from cvmonitor.ocr.text_spotting import text_spotting
-from cvmonitor.ocr.utils import get_device_names, is_text_valid
+from cvmonitor.ocr.utils import get_fields_info, is_text_valid
 import pylab
 
 
