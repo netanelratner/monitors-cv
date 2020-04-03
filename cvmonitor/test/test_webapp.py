@@ -150,7 +150,8 @@ def test_bad_bb(client):
         "segments": [{"left": 0, "top": 0, "right": 1, "bottom": 1, "name": "RR"}],
     }
     res = client.post(url_for("cv.run_ocr"), json=data)
-    assert {"name": "RR", "value": None}.items() <= res.json[0].items()
+    result = res.json
+    assert {"name": "RR", "value": None}.items() <= result[0].items()
 
 
 def test_ocr_with_partial_segments(client):

@@ -301,6 +301,9 @@ class ComputerVision:
                     segments[eb["index"]]["score"] = float(score)
                     segments[eb["index"]]["source"] = "server"
 
+            for s in segments:
+                if 'value' not in s:
+                    s['value']=None
             logging.debug(f"Detections: {segments}")
             return json.dumps(segments), 200, {"content-type": "application/json"}
 
