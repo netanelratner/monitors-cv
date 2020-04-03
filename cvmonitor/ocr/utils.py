@@ -1,5 +1,47 @@
 
 
+def is_text_valid(text, device_name_params):
+
+    """
+    Simple text validation.
+    Currently validates only numeric values.
+    Verified characters:
+        - number of digits
+        - minimal and maximal values
+        
+    Parameters
+        ----------
+        text : str
+            Text to be verified
+        device_name_params : dict
+            Dictionary defines device parameters (as written in get_device_names())
+
+        Returns
+        -------
+        is_valid : bool
+            True if text is valid, False otherwise
+    """
+
+    is_valid = True
+
+    dtype = device_name_params['dtype']
+
+    if dtype == 'int' or dtype == 'float':
+
+        if not is_number(text):  # text must be int or float
+            is_valid = False
+            return is_valid
+
+        val = eval('{}({})'.format(dtype, text))
+
+        if (device_name_params['min'] is not None) and (val < device_name_params['min']) \
+                or \
+                (device_name_params['max'] is not None) and (val > device_name_params['max']):
+            is_valid = False
+            return is_valid
+
+        return is_valid
+
 
 def get_device_names():
 

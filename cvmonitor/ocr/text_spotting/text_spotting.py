@@ -34,7 +34,7 @@ from .visualizer import Visualizer
 
 from .. import get_models
 
-from cvmonitor.ocr.utils import get_device_names, is_number
+from cvmonitor.ocr.utils import get_device_names, is_text_valid
 
 SOS_INDEX = 0
 EOS_INDEX = 1
@@ -292,23 +292,10 @@ class Model():
                     text = text[:dot_index] + '.' + text[dot_index:]
 
                 # verify text values
-                # cast text type
-                dtype = device_name_params['dtype']
+                is_valid = is_text_valid(text, device_name_params)
 
-                if dtype == 'int' or dtype == 'float':
-
-                    if not is_number(text): # text must be int or float
-                        text = None
-                        continue
-
-                    val = eval('{}({})'.format(dtype, text))
-
-                    if (device_name_params['min'] is not None) and (val < device_name_params['min']) \
-                        or \
-                        (device_name_params['max'] is not None) and (val > device_name_params['max']):
-
-                        text = None
-                        continue
+                if not is_valid:
+                    text = None
 
             texts.append(text)
             log.info(f'detected {text}: {scores[k]} {boxes[k]}')
