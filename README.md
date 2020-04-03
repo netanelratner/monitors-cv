@@ -1,9 +1,3 @@
-# Monitor reader computer vision service 
-
-Web service for computer vision compoenents for the monitor-monitoring system.
-
-This web service has a few endpoints, check /apidocs for thier description, in general:
-
 - `v1/detect_codes`
     Gets an image returns qr codes in the structure:
     ```json
@@ -114,7 +108,20 @@ sudo curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-
 From the folder of this repo run
 
 ```bash
+git pull
 docker-compose up
 ```
 
+Stop the server:
+
+- Ctrl + C
+
+optionally:
+
+```bash
+docker-compose rm
+```
+
+
+- If you want to change parameters, edit them in the docker compose file.
 
