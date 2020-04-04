@@ -281,6 +281,7 @@ class ComputerVision:
                                 "source": "server",
                             }
                         )
+                logging.debug(f"Detections (new): {segments}")
                 return json.dumps(segments), 200, {"content-type": "application/json"}
             segments = data["segments"]
             if len(segments) == 0:
