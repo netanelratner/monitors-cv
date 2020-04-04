@@ -81,7 +81,7 @@ def test_ocr_with_segments(client):
     image_buffer = base64.encodebytes(image).decode()
     segments = []
     devices_names = [
-        'Heart Rate','RR','SpO2','IBP-Systole','IBP-Diastole'
+        'HR','RR','SpO2','IBP-Systole','IBP-Diastole'
     ]
     for i, b in enumerate(bbox_list):
         segments.append(
@@ -121,7 +121,7 @@ def test_ocr_no_segments(client):
     segments = res.json
 
     devices_names = [
-        'Heart Rate','RR','SpO2','IBP-Systole','IBP-Diastole'
+        'HR','RR','SpO2','IBP-Systole','IBP-Diastole'
     ]
     expected = [
         {"name": devices_names[0], "value": "52"},
@@ -159,7 +159,7 @@ def test_ocr_with_partial_segments(client):
     bbox_list = np.load(open(os.path.dirname(__file__) + "/data/11_recs.npy", "rb"))
     image_buffer = base64.encodebytes(image).decode()
     devices_names = [
-        'Heart Rate','RR','SpO2','IBP-Systole','IBP-Diastole'
+        'HR','RR','SpO2','IBP-Systole','IBP-Diastole'
     ]
     data = {
         "image": image_buffer,

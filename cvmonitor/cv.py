@@ -19,43 +19,8 @@ from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
 from .ocr.text_spotting import text_spotting
 from cvmonitor.ocr.utils import get_fields_info, is_text_valid
-
+from .ocr.utils import get_ocr_expected_boxes
 np.set_printoptions(precision=3)
-
-
-def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reprocess):
-    """
-    Create expected boxes from segments.
-    Returns the boxes to perform ocr on them. each box will have the data
-    needed to run ocr, and will contain the original segment index
-    """
-    expected_boxes = []
-    for index, segment in enumerate(segments):
-        expected = {
-            "bbox": [
-                segment["left"],
-                segment["top"],
-                segment["right"],
-                segment["bottom"],
-            ],
-            "name": segment["name"],
-            "index": index,
-        }
-        needs_ocr = True
-        if "value" in segment and "name" in segment:
-            value = segment["value"]
-            name = segment["name"]
-            device_params = devices.get(name)
-            score = segment.get("score", default_score)
-            if (
-                device_params is not None
-                and is_text_valid(value, device_params)
-                and score > min_score_to_reprocess
-            ):
-                needs_ocr = False
-        if needs_ocr:
-            expected_boxes.append(expected)
-    return expected_boxes
 
 
 class ComputerVision:
