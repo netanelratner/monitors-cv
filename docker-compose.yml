@@ -47,7 +47,7 @@ services:
   #   expose:
   #     - 3000
   cvbackend:
-    image: brainoom/cvmonitor:v0.3.9
+    image: brainoom/cvmonitor:v0.3.11
     restart: always
     ports:
       - "8088:8088"
