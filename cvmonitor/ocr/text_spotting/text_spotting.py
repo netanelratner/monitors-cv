@@ -38,7 +38,7 @@ from .visualizer import Visualizer
 
 from .. import get_models
 
-from cvmonitor.ocr.utils import get_fields_info, is_text_valid
+from cvmonitor.ocr.utils import get_fields_info, is_text_valid, add_decimal_notation
 
 SOS_INDEX = 0
 EOS_INDEX = 1
@@ -297,9 +297,7 @@ class Model():
 
                 if expected_boxes and (name is not None):
                     # treat decimal digits
-                    if device_name_params and 'num_digits_after_point' in device_name_params.keys():
-                        dot_index = len(text) - device_name_params['num_digits_after_point']
-                        text = text[:dot_index] + '.' + text[dot_index:]
+                    text = add_decimal_notation(text, device_name_params)
 
                     # verify text values
                     # cast text type

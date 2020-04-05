@@ -18,8 +18,9 @@ from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
 from .ocr.text_spotting import text_spotting
-from cvmonitor.ocr.utils import get_fields_info, is_text_valid
+from cvmonitor.ocr.utils import get_fields_info, is_text_valid, draw_segments
 from .ocr.utils import get_ocr_expected_boxes
+
 np.set_printoptions(precision=3)
 
 
@@ -277,6 +278,74 @@ class ComputerVision:
                     s['value']=None
             logging.debug(f"Detections: {segments}")
             return json.dumps(segments), 200, {"content-type": "application/json"}
+
+
+        @self.blueprint.route("/show_ocr/", methods=["POST"])
+        def show_ocr():
+            """
+            Run ocr on an image
+            ---
+            description: run ocr on image
+            requestBody:
+                content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                            image:
+                                type: string
+                                contentEncoding: base64
+                                contentMediaType: image/jpeg
+                            segments:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        top:
+                                            type: number
+                                            format: integer
+                                        left:
+                                            type: number
+                                            format: integer
+                                        bottom:
+                                            type: number
+                                            format: integer
+                                        right:
+                                            type: number
+                                            format: integer
+            responses:
+              '200':
+                description: ocr results
+                content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                            type: object
+                            properties:
+                                segment_name:
+                                    type: string
+                                value:
+                                    type: string
+            """
+            data = request.json
+            assert "image" in data
+            image = np.asarray(
+                imageio.imread(base64.decodebytes(data["image"].encode()))
+            )
+            # Suggest segments
+            if data.get("segments"):
+                image = draw_segments(image, data.get('segments'))
+
+            headers = {"content-type": "image/jpeg"}
+            b = io.BytesIO()
+            imageio.imwrite(b, image, format="jpeg")
+            b.seek(0)
+            return b.read(), 200, headers
+            
+
+
+
 
         @self.blueprint.route("/qr/<title>", methods=["GET"])
         def qr(title):

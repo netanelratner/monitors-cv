@@ -1,5 +1,6 @@
 import random
-
+import cv2
+import numpy as np
 
 def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reprocess):
     """
@@ -36,6 +37,13 @@ def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reproc
     return expected_boxes
 
 
+def add_decimal_notation(text, device_name_params):
+    if '.' in text:
+        return text
+    if device_name_params and 'num_digits_after_point' in device_name_params:
+        dot_index = len(text) - device_name_params['num_digits_after_point']
+        text = text[:dot_index] + '.' + text[dot_index:]
+    return text
 
 def is_text_valid(text, device_name_params):
 
@@ -58,7 +66,6 @@ def is_text_valid(text, device_name_params):
         is_valid : bool
             True if text is valid, False otherwise
     """
-
     is_valid = True
 
     dtype = device_name_params.get('dtype',str)
@@ -70,14 +77,13 @@ def is_text_valid(text, device_name_params):
             return is_valid
 
         val = dtype(text)
-
-        if (device_name_params['min'] is not None) and (val < device_name_params['min']) \
-                or \
-                (device_name_params['max'] is not None) and (val > device_name_params['max']):
+        
+        if val < (device_name_params.get('min') or -100000):
             is_valid = False
-            return is_valid
+        if val > (device_name_params.get('max') or 100000):
+            is_valid = False
 
-        return is_valid
+    return is_valid
 
 
 def get_field_rand_value(field_info, current=None):
@@ -226,3 +232,12 @@ def enlarge_box(box, percent=0.2):
     box_out = [left, top, right, bottom]
 
     return box_out
+
+
+def draw_segments(image, segments):
+    color = np.minimum(np.median(image, axis=[0, 1])+100,[255,255,255])
+    for s in segments:
+        cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),color, 1)
+        cv2.putText(img=image, text=str(f"{s['name']}: {s.get('value','')}"), org=(s['left'], s['bottom'] + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+            fontScale=1, color=color, thickness=1)
+    return image

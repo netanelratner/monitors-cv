@@ -184,3 +184,28 @@ def test_ocr_with_partial_segments(client):
         ],
     ):
         assert e.items() <= r.items()
+
+
+def test_show_ocr_with_segments(client):
+    image = open(os.path.dirname(__file__) + "/data/11.jpg", "rb").read()
+    bbox_list = np.load(open(os.path.dirname(__file__) + "/data/11_recs.npy", "rb"))
+    image_buffer = base64.encodebytes(image).decode()
+    segments = []
+    devices_names = [
+        'HR','RR','SpO2','IBP-Systole','IBP-Diastole'
+    ]
+    for i, b in enumerate(bbox_list):
+        segments.append(
+            {
+                "left": int(b[0]),
+                "top": int(b[1]),
+                "right": int(b[2]),
+                "bottom": int(b[3]),
+                "name": str(devices_names[i]),
+                'value': 10
+            }
+        )
+    data = {"image": image_buffer, "segments": segments}
+    res = client.post(url_for("cv.show_ocr"), json=data)
+    image_res = imageio.imread(res.data)
+    assert imageio.imread(image).shape == image_res.shape
