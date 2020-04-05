@@ -126,3 +126,29 @@ docker-compose rm
 
 - If you want to change parameters, edit them in the docker compose file.
 
+## Simulator
+
+Start the docker with 
+
+```bash
+cvmonitor/generator/generate.py --help
+```
+
+To see options.
+
+Basically you need the send option which will generate devices and send images to the server, so just run
+
+
+```bash
+docker run <image-name> --net host cvmonitor/generator/generate.py --send --url <my-server-url>
+```
+
+And it will generate a new set of devices and send them to the server in url you set. 
+
+Run 
+
+```bash
+docker run <image-name> --net host cvmonitor/generator/generate.py --delete-all --url <my-server-url>
+```
+
+To delete all devices from server

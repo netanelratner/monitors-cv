@@ -345,7 +345,7 @@ def draw_segements(image, segments,colors):
         image =cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),c,1)
     return image
 
-model_ocr = monitor_ocr.build_model()
+#model_ocr = monitor_ocr.build_model()
 
 def send_picture(url: str, device: Device):
         image = device.picture()
@@ -473,7 +473,7 @@ if __name__ == "__main__":
     #url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
     url = 'http://52.157.71.156'
     
-    parser =  argparse.ArgumentParser()
+    parser =  argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--no_send',action='store_true',help='dont send to server just create images')
     parser.add_argument('--send',action='store_true',help='dont send to server just create images')
     parser.add_argument('--sim',action='store_true',help='Simulate a device')
@@ -486,7 +486,9 @@ if __name__ == "__main__":
             SEND_TO_SERVER=False
         if args.send:
             SEND_TO_SERVER=True
-
+    if not args.send and not args.no_send and not args.sim and not args.delete_all:
+        print(parser.format_help())
+        exit(0)
     random.seed(args.seed)
     if args.delete_all:
         sys.exit(delete_all(url) or 0)
