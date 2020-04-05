@@ -5,7 +5,7 @@ import os
 import aioredis
 from fastapi import FastAPI, Request, Header
 
-from .backend_data import MonitorDataPost, MonitorDataGetResponse, Monitor, MonitorImagePostResponse
+from .data import MonitorDataPost, MonitorDataGetResponse, Monitor, MonitorImagePostResponse
 
 app = FastAPI()
 
