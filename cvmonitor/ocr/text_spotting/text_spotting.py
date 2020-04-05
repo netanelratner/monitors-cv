@@ -106,7 +106,7 @@ def iou(boxA, boxB):
     return iou
 
 
-def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1):
+def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, vertical_dist_percent_max=0.2):
 
     """
     iou_th and adjacent_boxes_max_iou are used for secondary match:
@@ -124,7 +124,6 @@ def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1):
     matches_indices = matches_indices_sorted[:, 0]
     matches_scores = matches[range(matches.shape[0]), matches_indices]
 
-
     # calculate secondary matches
 
     matches_indices_secondary = []
@@ -138,6 +137,7 @@ def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1):
         score_list = []
 
         actual1 = actual[r]
+        expect = expected[r]
 
         for c in range(cols):
 
@@ -155,15 +155,36 @@ def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1):
 
                 if iou_act1_act2 < adjacent_boxes_max_iou:
 
-                    ind_list.append(ind)
-                    score_list.append(score)
-                    # break # take only 1 secondary match
+                    # check vertical distance
+                    left, top, right, bottom = expect
+                    h = bottom - top
+
+                    left1, top1, right1, bottom1 = actual1  # [left, top, right, bottom]
+                    left2, top2, right2, bottom2 = actual1  # [left, top, right, bottom]
+
+                    # calculate mean height
+                    h1 = bottom1 - top1
+                    h2 = bottom2 - top2
+                    # h_mean = 0.5 * (h1 + h2)
+
+                    # calculate vertical distance threshold
+                    vertical_dist_th = vertical_dist_percent_max * h1
+
+                    ver_dist_ok = (np.abs(h1 - h2) < vertical_dist_th) and \
+                                  (np.abs(top1 - top2) < vertical_dist_th) and \
+                                  (np.abs(bottom1 - bottom2) < vertical_dist_th)
+
+                    if ver_dist_ok:
+
+                        ind_list.append(ind)
+                        score_list.append(score)
+                        # break # take only 1 secondary match
             else:
                 break # since scores are sorted all remaining scores are lower than iou_th
 
         if len(ind_list) == 0:
-            ind_list.append(-1)
-            score_list.append(-1)
+            ind_list.append(None)
+            score_list.append(None)
 
         matches_indices_secondary.append(ind_list)
         matches_scores_secondary.append(score_list)
@@ -300,10 +321,19 @@ class Model():
             matches = []
             names = []
 
+            # for secondary match
+            scores_secondary = []
+            classes_secondary = []
+            boxes_secondary = []
+            raw_masks_secondary = []
+            text_features_secondary = []
+            matches_secondary = []
+
+
             best_matches, match_score,  matches_indices_secondary, matches_scores_secondary = \
                 match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
 
-            for i,(match, score)  in enumerate(zip(best_matches, match_score)):
+            for i,(match, score, match_sec, score_sec)  in enumerate(zip(best_matches, match_score, matches_indices_secondary, matches_scores_secondary)):
                 log.info(f'box: {initial_boxes[match]} scored iou of {score}')
                 scores.append(initial_scores[match])
                 classes.append(initial_classes[match])
@@ -317,11 +347,23 @@ class Model():
                 else:
                     matches.append(None)
 
+                # secondary match
+                match_sec = match_sec[0] # take only first secondary match (with highest score
+                scores_secondary.append(initial_scores[match_sec])
+                classes_secondary.append(initial_classes[match_sec])
+                boxes_secondary.append(initial_boxes[match_sec])
+                raw_masks_secondary.append(initial_raw_masks[match_sec])
+                text_features_secondary.append(initial_text_features[match_sec])
+                if score_sec > self.iou_threshold:
+                    matches_secondary.append(match_sec)
+                else:
+                    matches_secondary.append(None)
+
             classes = np.asarray(classes, dtype=np.uint32)
             log.info(f' Time Spent on trimming: {(time.time()-tt)*1000} ms')
         texts = []
         alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
-        for k, feature in enumerate(text_features):
+        for k, (feature, feature_sec) in enumerate(zip(text_features, text_features_secondary)):
             try: 
                 if matches and matches[k]==None:
                     texts.append(None)
@@ -353,6 +395,9 @@ class Model():
                         break
                     text += alphabet[prev_symbol_index]
                     hidden = decoder_output['hidden']
+
+                # secondary text
+                # TODO: add secondary text recognition logic and concatenate to text
 
                 if expected_boxes and (name is not None):
                     # treat decimal digits
