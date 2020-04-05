@@ -238,6 +238,6 @@ def draw_segments(image, segments):
     color = np.minimum(np.median(image, axis=[0, 1])+100,[255,255,255])
     for s in segments:
         cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),color, 1)
-        cv2.putText(img=image, text=str(f"{s['name']}: {s.get('value','')}"), org=(s['left'], s['bottom'] + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+        cv2.putText(img=image, text=str(f"{s.get('name','?')]}: {s.get('value','?')}"), org=(s['left'], s['bottom'] + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
             fontScale=1, color=color, thickness=1)
     return image

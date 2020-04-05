@@ -363,7 +363,7 @@ def send_picture(url: str, device: Device):
             else:
                 headers['X-MONITOR-ID']=str(device.qrtext)
             headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
-            res = requests.post(url + '/monitor_image', data=b,headers=headers)
+            res = requests.post(url + f'/monitor_image', data=b,headers=headers)
             res_data = res.json()
             print(res_data)
             if 'nextImageId' in res_data:
