@@ -253,7 +253,7 @@ class ModelOCR(object):
             if box['name'] not in self.fields_info:
                 are_numeric.append(False)
             else:
-                are_numeric.append((self.fields_info[box['name']]['dtype'] in ['int','float']))
+                are_numeric.append((self.fields_info[box['name']]['dtype'] in [int, float]))
         texts, preds = self.detect(bbox_list, image, are_numeric, save_image_path)
         more_texts = []
         for t, p, b in zip(texts,preds,bbox_list):

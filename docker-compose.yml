@@ -1,4 +1,10 @@
 version: "3.3"
+
+volumes:
+  mongo-db:
+  grafana-storage:
+  prom-data:
+
 services:
   jaeger:
     image: jaegertracing/all-in-one:1.17
@@ -22,32 +28,31 @@ services:
     ports:
     - "27017:27017"
     volumes:
-      - "${PWD}/compose/database/mongo:/data/db"
-  # prom:
-  #   image: prom/prometheus
-  #   restart: always 
-  #   user: '1000'
-  #   volumes:
-  #     - ${PWD}/compose/database/prom/prometheus.yml:/etc/prometheus/prometheus.yml 
-  #     - ${PWD}/compose/database/prom/data/:/prometheus/
-  #   ports:
-  #     - "9000:9000"
-  #   depends_on:
-  #     - mongo
-  # grafana:
-  #   image: grafana/grafana 
-  #   restart: always
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ${PWD}/compose/database/grafana/data:/var/lib/grafana
-  #   depends_on:
-  #     - prom
-  #     - mongo
-  #   expose:
-  #     - 3000
+      - "mongo-db:/data/db"
+  prom:
+    image: prom/prometheus
+    restart: always 
+    user: '0'
+    volumes:
+      - ${PWD}/compose/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9000:9000"
+    depends_on:
+      - mongo
+  grafana:
+    image: grafana/grafana 
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana/
+    depends_on:
+      - prom
+      - mongo
+    expose:
+      - 3000
   cvbackend:
-    image: brainoom/cvmonitor:v0.3.9
+    image: brainoom/cvmonitor:v0.3.12
     restart: always
     ports:
       - "8088:8088"

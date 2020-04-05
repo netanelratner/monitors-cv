@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import math
+import sys
 import argparse
 import copy
 import datetime
@@ -27,6 +28,8 @@ from matplotlib import animation
 from cvmonitor.ocr import monitor_ocr
 from cvmonitor import cv
 from pylab import imshow, show
+from cvmonitor.ocr.utils import get_fields_info, get_field_rand_value
+from cvmonitor.ocr.utils import get_ocr_expected_boxes
 QRSIZE=100
 
 SEND_TO_SERVER = False
@@ -153,43 +156,7 @@ name_list = [
  "אורלי לוי-אבקסיס"
 ]
 
-ivac = {
-     "Medication Name": lambda: random.choice(['MEDI', "WINE", "COFFE", "BEER"]),
-     "Volume Left to Infuse": lambda: random.randint(10, 13),
-     "Volume to Insert": lambda: random.randint(10, 13),
-     "Infusion Rate": lambda: random.randint(10, 13),
-}
-
-respirator = {
-     "Ventilation Mode": lambda: random.choice(["ABC", "DEF"]),
-     "Tidal Volume": lambda: random.randint(350, 600),
-     "Expiratory Tidal Volume": lambda: random.randint(10, 100),
-     "Rate": lambda: random.randint(10, 100),
-     "Total Rate": lambda: random.randint(10, 100),
-     "Peep": lambda: random.randint(10, 100),
-     "Ppeek": lambda: random.randint(10, 100),
-     "FIO2": lambda: random.randint(10, 100),
-     "I:E Ratio": lambda: random.randint(10, 100),
-     "Inspiratory Time": lambda: random.randint(10, 100),
-}
-
-monitor = {
-     "Heart Rate": lambda: random.randint(45, 120),
-     "SpO2": lambda: random.randint(10, 100),
-     "RR": lambda: random.randint(10, 100),
-     "IBP-Systole": lambda: random.randint(10, 100),
-     "IBP-Diastole": lambda: random.randint(10, 100),
-     "NIBP-Systole": lambda: random.randint(10, 100),
-     "NIBP-Diastole": lambda: random.randint(10, 100),
-     "Temp": lambda: random.randint(10, 100),
-     "etCO2": lambda: random.randint(10, 100),
-}
-
-devices = {
-     "ivac": ivac,
-     "respirator": respirator,
-     "monitor": monitor
-}
+devices  = get_fields_info()
 
 
 def get_qr_code(title):
@@ -209,14 +176,15 @@ def get_qr_code(title):
 
 
 def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], x_start=300, y_start=200):
-    # size=np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
-    size=np.array(cv2.getTextSize(text=str('CO'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
+    size=np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
+    #size=np.array(cv2.getTextSize(text=str('CO'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
     y_step = size[1]+50
     x_step = size[0]+50
     x = x_start
     y = y_start
     segments = []
-    for m in devices[device_type]:
+    fields = get_fields_info([device_type])
+    for m in fields:
         if x+x_step >= image_size[1]-50:
             x = x_start
             y += y_step
@@ -234,24 +202,19 @@ def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], 
 
 
 def fill_segments(segments, device_type):
-    device = devices[device_type]
     values = []
     colors = []
+    fields = get_fields_info([device_type])
     for s in segments:
-        values.append({"name": s['name'], "value": device[s['name']]()})
+        values.append({"name": s['name'], "value": get_field_rand_value(fields[s['name']])})
         colors.append((random.randint(20,255),random.randint(20,255),random.randint(20,255)))
     return values, colors
 
 
-def change_values(values):
+def change_values(values, device_type):
+    fields = get_fields_info([device_type])
     for i in range(len(values)):
-        if str(values[i]['value']).isnumeric():
-            values[i]['value'] += random.randint(-3, 3)
-            if random.randint(0,1)==0:
-                values[i]['value'] +=0.1
-            else:
-                values[i]['value'] = math.floor(values[i]['value'])
-            values[i]['value'] = max(values[i]['value'],0)
+        values[i]['value']= get_field_rand_value(fields[values[i]['name']], values[i]['value'])
     return values
 
 def rotate_image(image, angle):
@@ -273,11 +236,13 @@ def rotate_image(image, angle):
 def generate_picture(qrcode, image_size, segments, values, colors, fontScale,thickness):
     image = np.zeros((image_size[0],image_size[1],3),dtype=np.uint8)+40
     image[12:qrcode.shape[0]+12, 18:qrcode.shape[1]+18, :] = qrcode
-    for s, v, color in zip(segments, values,colors):
+    for s, v, color, f, t  in zip(segments, values,colors, fontScale, thickness):
         size=cv2.getTextSize(text=str(v['value']), fontFace=cv2.FONT_HERSHEY_PLAIN, 
-            fontScale=fontScale,thickness=thickness)
+            fontScale=f,thickness=t)
         image = cv2.putText(img=image, text=str(v['value']), org=(s['left'], s['top']+size[0][1]+20), fontFace=cv2.FONT_HERSHEY_PLAIN, 
-            fontScale=fontScale, color=color, thickness=thickness)
+            fontScale=f, color=color, thickness=t)
+        cv2.putText(img=image, text=str(v['name']), org=(s['left'], s['top']-10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+            fontScale=0.6, color=(0,0,0), thickness=1)
     return image
 
 class Device():
@@ -287,9 +252,9 @@ class Device():
         self.monitor_id = None
         self.device_type = device_type
         self.image_size = [1000, 1200]
-        self.fontScale = random.randint(3, 5)
-        self.thickness= random.randint(3, 8)
-        self.segments = create_segments(device_type,  self.fontScale, self.thickness, self.image_size)
+        self.segments = create_segments(device_type,  7, 8, self.image_size)
+        self.fontScale = [random.randint(2, 7) for _ in self.segments]
+        self.thickness= [random.randint(3, 8) for _ in self.segments]
         self.draw_segments = copy.deepcopy(self.segments)
         self.values, self.colors = fill_segments(self.segments, device_type)
         qrcode, self.qrtext = get_qr_code(device_type)
@@ -306,7 +271,7 @@ class Device():
             )
 
     def change_values(self):
-        self.values = change_values(self.values)
+        self.values = change_values(self.values, self.device_type)
 
 
 def fill_rooms(device_count) -> List[Device]:
@@ -337,8 +302,10 @@ def order_points(pts):
 def find_qrcode(image, prefix):
     if len(image.shape)==3:
         image = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
-    image = clahe.apply(image)
+    decodedObjects = pyzbar.decode(image)
+    if decodedObjects is None:
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64,64))
+        image = clahe.apply(image)
     decodedObjects = pyzbar.decode(image)
     detected_qrcode = None
     for obj in decodedObjects:
@@ -402,7 +369,7 @@ def send_picture(url: str, device: Device):
             if 'nextImageId' in res_data:
                 device.index = res_data['nextImageId']
             if 'monitorId' in res_data:
-                device.monitor_id = 'monitorId'
+                device.monitor_id = res_data['monitorId']
         else:
             detected_qrcode = find_qrcode(image, '')
             if detected_qrcode is None:
@@ -411,8 +378,9 @@ def send_picture(url: str, device: Device):
             image, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
             segments = device.segments
             # FIXME: assume that image is in RGB (not BGR). if not - should fix code in monitor_ocr.detect()
-            texts = model_ocr.ocr(segments, image, threshold=0.2, save_image_path=device.qrtext +'test.jpg')
-            print(texts)
+            expected_boxes = get_ocr_expected_boxes(segments,devices,0.5,0.6)
+            #texts = model_ocr.ocr(expected_boxes, image, threshold=0.2)
+            #print(texts)
 
 def send_all_pictures(url, active_devices: List[Device]):
     device_indxes = list(range(len(active_devices)))
@@ -494,6 +462,12 @@ def simulate_monitor(url):
 
         print('.',end='')
     
+def delete_all(url):
+    monitors = requests.get(f'{url}/monitor/list').json()
+    for monitor in monitors:
+        print(f'deleteing {monitor}')
+        print(requests.delete(f'{url}/monitor/{monitor}').json())
+
 
 if __name__ == "__main__":
     #url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
@@ -505,6 +479,7 @@ if __name__ == "__main__":
     parser.add_argument('--sim',action='store_true',help='Simulate a device')
     parser.add_argument('--seed',default=0,type=int,help='Random seed')
     parser.add_argument('--url',default=url,type=str,help='Server url to use')
+    parser.add_argument('--delete_all',action="store_true",help="Delete all monitors from server")
     args = parser.parse_args()
     if args.no_send!=args.send:
         if args.no_send:
@@ -513,6 +488,8 @@ if __name__ == "__main__":
             SEND_TO_SERVER=True
 
     random.seed(args.seed)
+    if args.delete_all:
+        sys.exit(delete_all(url) or 0)
     if args.sim:
         simulate_monitor(args.url)
     else:

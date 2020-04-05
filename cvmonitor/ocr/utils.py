@@ -1,3 +1,40 @@
+import random
+
+
+def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reprocess):
+    """
+    Create expected boxes from segments.
+    Returns the boxes to perform ocr on them. each box will have the data
+    needed to run ocr, and will contain the original segment index
+    """
+    expected_boxes = []
+    for index, segment in enumerate(segments):
+        expected = {
+            "bbox": [
+                segment["left"],
+                segment["top"],
+                segment["right"],
+                segment["bottom"],
+            ],
+            "name": segment["name"],
+            "index": index,
+        }
+        needs_ocr = True
+        if "value" in segment and "name" in segment:
+            value = segment["value"]
+            name = segment["name"]
+            device_params = devices.get(name)
+            score = segment.get("score", default_score)
+            if (
+                device_params is not None
+                and is_text_valid(value, device_params)
+                and score > min_score_to_reprocess
+            ):
+                needs_ocr = False
+        if needs_ocr:
+            expected_boxes.append(expected)
+    return expected_boxes
+
 
 
 def is_text_valid(text, device_name_params):
@@ -24,15 +61,15 @@ def is_text_valid(text, device_name_params):
 
     is_valid = True
 
-    dtype = device_name_params['dtype']
+    dtype = device_name_params.get('dtype',str)
 
-    if dtype == 'int' or dtype == 'float':
+    if dtype == int or dtype == float:
 
         if not is_number(text):  # text must be int or float
             is_valid = False
             return is_valid
 
-        val = eval('{}({})'.format(dtype, text))
+        val = dtype(text)
 
         if (device_name_params['min'] is not None) and (val < device_name_params['min']) \
                 or \
@@ -43,44 +80,72 @@ def is_text_valid(text, device_name_params):
         return is_valid
 
 
-def get_fields_info():
+def get_field_rand_value(field_info, current=None):
+    if field_info['dtype'] in [float, int]:
+        max_val = field_info.get('max') or int(0.99999 *(10**(field_info['max_len'])))
+        min_val = field_info.get('min') or 0
+        if current is None:
+            base = random.randint(min_val,  max_val)
+            if 'num_digits_after_point' in field_info:
+                base = float(base) / 10**field_info['num_digits_after_point']
+        else:
+            base = field_info['dtype'](current) + random.randint(-3,3)
+            if random.randint(0,1) == 0:
+                base += 0.1
+            base = max(min_val,min(base, max_val))
+            base =  field_info['dtype'](base)
+    if field_info['dtype'] in [str]:
+        base = random.choice(['wine','beer','coffee','soda','water'])
+    max_len = field_info.get('max_len',20)
+    base = str(base)
+    if '.' in base:
+        max_len+=1
+    if len(base) > max_len:
+        base = base[:max_len]
+    return base
 
-    device_names =  {
-    # ivac
-    'Medication Name': {'max_len': 10, 'dtype': 'str'},
-    'Volume Left to Infuse':  {'max_len': 3, 'min': 10, 'max': None, 'dtype': 'int'},
-    'Volume to Insert':  {'max_len': 3, 'min': 10, 'max': None, 'dtype': 'int'},
-    'Infusion Rate':  {'max_len': 4, 'min': 0, 'max': None, 'dtype': 'float', 'num_digits_after_point': 1},
+def get_fields_info(device_types=['respirator','ivac','monitor']):
 
-    # respirator
-    'Ventilation Mode': {'max_len': 10, 'dtype': 'str'},
-    'Tidal Volume': {'max_len': 3, 'min': 350, 'max': 600, 'dtype': 'int'},
-    'Expiratory Tidal Volume': {'max_len': 3, 'min': None, 'max': None, 'dtype': 'int'},
-    'Rate': {'max_len': 2, 'min': 10, 'max': 40, 'dtype': 'int'},
-    'Total Rate': {'max_len': 2, 'min': 10, 'max': 40, 'dtype': 'int'},
-    'Peep': {'max_len': 2, 'min': None, 'max': None, 'dtype': 'int'},
-    'Ppeak': {'max_len': 2, 'min': None, 'max': 40, 'dtype': 'int'},
-    'FIO2': {'max_len': 3, 'min': None, 'max': None, 'dtype': 'int'},
-    'I:E Ratio': {'max_len': 2, 'min': None, 'max': None, 'dtype': 'float', 'num_digits_after_point': 1}, # FIXME: assume that operator selects only X.X part, without the digit 1
-    'Inspiratory time': {'max_len': 2, 'min': None, 'max': None, 'dtype': 'float', 'num_digits_after_point': 1},
-
-    # monitor
-    'Heart Rate': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
-    'SpO2': {'max_len': 3, 'min': 90, 'max': None, 'dtype': 'int'},
-    'RR': {'max_len': 2, 'min': 8, 'max': 26, 'dtype': 'int'},
-    'IBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
-    'IBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
-    'NIBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': 'int'},  # left blood pressure
-    'NIBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': 'int'},  # right blood pressure
-    'Temp': {'max_len': 3, 'min': 35.0, 'max': 38.0, 'dtype': 'float', 'num_digits_after_point': 1},
-    'etCO2': {'max_len': 2, 'min': 24, 'max': 44, 'dtype': 'int'},
-
-    # for annotations only, currently not found in android app
-    'hr_saturation': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': 'int'},
-
+    ivac = {
+    'Medication Name': {'max_len': 10, 'dtype': str},
+    'Volume Left to Infuse':  {'max_len': 3, 'min': 10, 'max': None, 'dtype': int},
+    'Volume to Insert':  {'max_len': 3, 'min': 10, 'max': None, 'dtype': int},
+    'Infusion Rate':  {'max_len': 4, 'min': 0, 'max': None, 'dtype': float, 'num_digits_after_point': 1},
     }
+    respirator = {
+    'Ventilation Mode': {'max_len': 10, 'dtype': str},
+    'Tidal Volume': {'max_len': 3, 'min': 350, 'max': 600, 'dtype': int},
+    'Expiratory Tidal Volume': {'max_len': 3, 'min': None, 'max': None, 'dtype': int},
+    'Rate': {'max_len': 2, 'min': 10, 'max': 40, 'dtype': int},
+    'Total Rate': {'max_len': 2, 'min': 10, 'max': 40, 'dtype': int},
+    'Peep': {'max_len': 2, 'min': None, 'max': None, 'dtype': int},
+    'Ppeak': {'max_len': 2, 'min': None, 'max': 40, 'dtype': int},
+    'FIO2': {'max_len': 3, 'min': None, 'max': None, 'dtype': int},
+    'I:E Ratio': {'max_len': 2, 'min': None, 'max': None, 'dtype': float, 'num_digits_after_point': 1}, # FIXME: assume that operator selects only X.X part, without the digit 1
+    'Inspiratory time': {'max_len': 2, 'min': None, 'max': None, 'dtype': float, 'num_digits_after_point': 1},
+    }
+    monitor = {
+    'HR': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': int},
+    'SpO2': {'max_len': 3, 'min': 90, 'max': None, 'dtype': int},
+    'RR': {'max_len': 2, 'min': 8, 'max': 26, 'dtype': int},
+    'IBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': int},  # left blood pressure
+    'IBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': int},  # right blood pressure
+    'NIBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': int},  # left blood pressure
+    'NIBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': int},  # right blood pressure
+    'Temp': {'max_len': 3, 'min': 35.0, 'max': 38.0, 'dtype': float, 'num_digits_after_point': 1},
+    'etCO2': {'max_len': 2, 'min': 24, 'max': 44, 'dtype': int},
+    }
+    # for annotations only, currently not found in android app
+    #'hr_saturation': {'max_len': 3, 'min': 45, 'max': 120, 'dtype': int},
+    devices = {}
 
-    return device_names
+    if 'respirator' in  device_types:
+        devices.update(respirator)
+    if 'monitor' in  device_types:
+        devices.update(monitor)
+    if 'ivac' in  device_types:
+        devices.update(ivac)
+    return devices
 
 
 def annotation_names_mapping():
@@ -92,7 +157,7 @@ def annotation_names_mapping():
 
     names2anns = {}
 
-    names2anns['hr'] = 'Heart Rate'
+    names2anns['hr'] = 'HR'
     names2anns['hr_saturation'] = 'hr_saturation'
     names2anns['spo2'] = 'SpO2'
     names2anns['rr'] = 'RR'

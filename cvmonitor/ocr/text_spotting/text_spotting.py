@@ -27,7 +27,11 @@ from argparse import ArgumentParser, SUPPRESS
 
 import cv2
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork
+try:
+    from openvino.inference_engine import IECore, IENetwork
+except ImportError:
+    logging.error("Couldn't import openvino")
+    pass
 
 from .tracker import StaticIOUTracker
 from .visualizer import Visualizer
@@ -259,52 +263,60 @@ class Model():
         texts = []
         alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
         for k, feature in enumerate(text_features):
-
-            if matches and matches[k]==None:
-                texts.append(None)
-                break
-            feature = self.text_enc_exec_net.infer({'input': feature})['output']
-            feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
-            feature = np.transpose(feature, (0, 2, 1))
-
-            hidden = np.zeros(self.hidden_shape)
-            prev_symbol_index = np.ones((1,)) * SOS_INDEX
-
-            device_name_params = {}
-            try:  # if expected_boxes:
-                name = names[k]
-                device_name_params = self.device_names[name]
-                max_seq_len = device_name_params['max_len']
-            except:  # else: # name is None
-                max_seq_len = self.max_seq_len
-
-            text = ''
-            for i in range(max_seq_len):
-                decoder_output = self.text_dec_exec_net.infer({
-                    'prev_symbol': prev_symbol_index,
-                    'prev_hidden': hidden,
-                    'encoder_outputs': feature})
-                symbols_distr = decoder_output['output']
-                prev_symbol_index = int(np.argmax(symbols_distr, axis=1))
-                if prev_symbol_index == EOS_INDEX:
+            try: 
+                if matches and matches[k]==None:
+                    texts.append(None)
                     break
-                text += alphabet[prev_symbol_index]
-                hidden = decoder_output['hidden']
+                feature = self.text_enc_exec_net.infer({'input': feature})['output']
+                feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
+                feature = np.transpose(feature, (0, 2, 1))
 
-            if expected_boxes and (name is not None):
-                # treat decimal digits
-                if device_name_params and 'num_digits_after_point' in device_name_params.keys():
-                    dot_index = len(text) - device_name_params['num_digits_after_point']
-                    text = text[:dot_index] + '.' + text[dot_index:]
+                hidden = np.zeros(self.hidden_shape)
+                prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
-                # verify text values
-                # cast text type
-                is_valid = is_text_valid(text, device_name_params)
-                if not is_valid:
-                    text = None
+                device_name_params = {}
+                try:  # if expected_boxes:
+                    name = names[k]
+                    device_name_params = self.device_names[name]
+                    max_seq_len = device_name_params['max_len']
+                except:  # else: # name is None
+                    max_seq_len = self.max_seq_len
 
-            texts.append(text)
-            log.info(f'detected {text}: {scores[k]} {boxes[k]}')
+                text = ''
+                for i in range(max_seq_len):
+                    decoder_output = self.text_dec_exec_net.infer({
+                        'prev_symbol': prev_symbol_index,
+                        'prev_hidden': hidden,
+                        'encoder_outputs': feature})
+                    symbols_distr = decoder_output['output']
+                    prev_symbol_index = int(np.argmax(symbols_distr, axis=1))
+                    if prev_symbol_index == EOS_INDEX:
+                        break
+                    text += alphabet[prev_symbol_index]
+                    hidden = decoder_output['hidden']
+
+                if expected_boxes and (name is not None):
+                    # treat decimal digits
+                    if device_name_params and 'num_digits_after_point' in device_name_params.keys():
+                        dot_index = len(text) - device_name_params['num_digits_after_point']
+                        text = text[:dot_index] + '.' + text[dot_index:]
+
+                    # verify text values
+                    # cast text type
+                    is_valid = is_text_valid(text, device_name_params)
+                    if not is_valid:
+                        log.warning(f'text {text} for {name} is not valid')
+                        print(f'text {text} for {name} is not valid')
+                        text = None
+
+                texts.append(text)
+                log.info(f'detected {text}: {scores[k]} {boxes[k]}')
+            except Exception as e:
+                texts.append(None)
+                name = 'unknown field'
+                if expected_boxes and len(expected_boxes) < k:
+                    name = expected_boxes[k].get('name','unknown field')
+                log.error(f"Error occurred while processing {name}: {e}")
         inf_end = time.time()
         inf_time = inf_end - inf_start
         # performance stats.
