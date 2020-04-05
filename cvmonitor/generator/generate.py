@@ -28,7 +28,7 @@ from cvmonitor.ocr import monitor_ocr
 from cvmonitor import cv
 from pylab import imshow, show
 from cvmonitor.ocr.utils import get_fields_info, get_field_rand_value
-from .ocr.utils import get_ocr_expected_boxes
+from cvmonitor.ocr.utils import get_ocr_expected_boxes
 QRSIZE=100
 
 SEND_TO_SERVER = False
@@ -369,7 +369,7 @@ def send_picture(url: str, device: Device):
             if 'nextImageId' in res_data:
                 device.index = res_data['nextImageId']
             if 'monitorId' in res_data:
-                device.monitor_id = 'monitorId'
+                device.monitor_id = res_data['monitorId']
         else:
             detected_qrcode = find_qrcode(image, '')
             if detected_qrcode is None:
