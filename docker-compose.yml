@@ -1,11 +1,17 @@
 version: "3.3"
 
 volumes:
-  mongo-db:
   grafana-storage:
   prom-data:
+  redis-data:
 
 services:
+  redis:
+    image: redis
+    ports: 
+    - "6379:6379"
+    volumes:
+    - "redis-data:/data"
   jaeger:
     image: jaegertracing/all-in-one:1.17
     restart: always
@@ -55,9 +61,9 @@ services:
     image: brainoom/cvmonitor:v0.3.13
     restart: always
     ports:
-      - "8088:8088"
+      - "80:8088"
     expose:
-      - 8088
+      - 80
     environment:
       CVMONITOR_SPOTTING_PROB_THRESHOLD: ${CVMONITOR_SPOTTING_PROB_THRESHOLD:-0.3}
       CVMONITOR_SEGMENT_THRESHOLD: ${CVMONITOR_SEGMENT_THRESHOLD:-0.95}
@@ -85,20 +91,7 @@ services:
       CVMONITOR_THRESHOLD_CHARACTER: ${CVMONITOR_THRESHOLD_CHARACTER:-0.95}
     depends_on: 
        - jaeger
-  backend:
-    image: yehiyam/monitor-backend:v0.0.18
-    restart: always
-    ports:
-      - "80:3000"
-    expose:
-      - 80
-    environment:
-      CVMONITOR_HOST: cvbackend
-      DB_CONNECTION: mongodb://mongo/test
-    depends_on:
-      - cvbackend
-      - mongo
-      - jaeger
+       - redis
   frontend:
       image: registry.gitlab.com/or2511/covid-frontend:version-1-0-4
       restart: always
@@ -107,4 +100,4 @@ services:
       expose:
         - 4200
       depends_on: 
-        - backend
+        - cvbackend
