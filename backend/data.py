@@ -9,9 +9,18 @@ class Segment(BaseModel):
     bottom: int
     right: int
     name: str
-    value: str
-    score: float
-    source: Union[str, None]
+    value: Union[str, None] = None
+    score: float = 0.0
+    source: Union[str, None] = None
+
+
+class Codes(BaseModel):
+    data: str
+    top: int
+    left: int
+    bottom: int
+    right: int
+    code_type: str
 
 
 class ScreenCorners(BaseModel):
@@ -36,5 +45,6 @@ class DeviceRecord(BaseModel):
     imageId: str
     timestamp: str
     deviceId: str
+    deviceCategory: str
     segments: List[Segment]
     image: bytes
