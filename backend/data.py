@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Union, Tuple
+from datetime import datetime
+
 
 class Segment(BaseModel):
     top: int
@@ -9,24 +11,26 @@ class Segment(BaseModel):
     name: str
     value: str
     score: float
-    source: Union[str,None]
+    source: Union[str, None]
+
 
 class ScreenCorners(BaseModel):
-    left_top: Tuple[int,int]
-    right_top: Tuple[int,int]
-    left_bottom: Tuple[int,int]
-    right_bottom: Tuple[int,int]
+    left_top: Tuple[int, int]
+    right_top: Tuple[int, int]
+    left_bottom: Tuple[int, int]
+    right_bottom: Tuple[int, int]
 
 
 class Device(BaseModel):
     deviceId: str
     refImageId: str
-    refTimestamp: str # iso 8601 timestamp
+    refTimestamp: datetime
     patientId: str
     roomId: str
     deviceCategory: str
     screenCorners: ScreenCorners
     segments: List[Segment]
+
 
 class DeviceRecord(BaseModel):
     imageId: str
@@ -34,5 +38,3 @@ class DeviceRecord(BaseModel):
     deviceId: str
     segments: List[Segment]
     image: bytes
-
-

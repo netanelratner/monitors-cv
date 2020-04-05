@@ -7,15 +7,10 @@ client = TestClient(app)
 
 def test_read_main():
     with client:
-        response = client.post("/monitor_data",
-        json={
-            'monitorId': 'sdfsdfsdfsd',
-            'file': 'byte64 encoded file data'
-            
-        })
-        assert response.status_code == 200
-        #assert response.json() == {"Hello": "world"}
+        data = {"imageId": "image", "deviceId": "device", "timestamp": "", "segments": [], "image": "blah"}
+        response = client.post("/monitor_data", json=data)
+        assert response.status_code == 200  # TODO maybe 202 ?
 
-        response = client.get("/monitor_data/sdfsdfsdfsd")
+        response = client.get("/monitor_data/device")
         assert response.status_code == 200
-        assert response.text == '{"monitorId":"sdfsdfsdfsd","imageId":0,"file":"byte64 encoded file data","timestamp":null,"ocrResults":[]}'
+        assert response.json() == {"deviceId": "device", "imageId": "image", "timestamp": "", "segments": [], "image": "blah"}
