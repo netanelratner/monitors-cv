@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import math
+import sys
 import argparse
 import copy
 import datetime
@@ -462,6 +463,12 @@ def simulate_monitor(url):
 
         print('.',end='')
     
+def delete_all(url):
+    monitors = requests.get(f'{url}/monitor/list').json()
+    for monitor in monitors:
+        print(f'deleteing {monitor}')
+        print(requests.delete(f'{url}/monitor/{monitor}').json())
+
 
 if __name__ == "__main__":
     #url = 'http://cvmonitors.westeurope.cloudapp.azure.com'
@@ -473,6 +480,7 @@ if __name__ == "__main__":
     parser.add_argument('--sim',action='store_true',help='Simulate a device')
     parser.add_argument('--seed',default=0,type=int,help='Random seed')
     parser.add_argument('--url',default=url,type=str,help='Server url to use')
+    parser.add_argument('--delete_all',action="store_true",help="Delete all monitors from server")
     args = parser.parse_args()
     if args.no_send!=args.send:
         if args.no_send:
@@ -481,6 +489,8 @@ if __name__ == "__main__":
             SEND_TO_SERVER=True
 
     random.seed(args.seed)
+    if args.delete_all:
+        sys.exit(delete_all(url) or 0)
     if args.sim:
         simulate_monitor(args.url)
     else:
