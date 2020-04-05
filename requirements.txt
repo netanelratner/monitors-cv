@@ -31,3 +31,6 @@ pytesseract
 exifread
 imutils
 jaeger-client
+fastapi
+uvicorn
+aioredis
