@@ -25,7 +25,7 @@ def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reproc
             value = segment.value
             name = segment.name
             device_params = devices.get(name)
-            score = segment.get("score", default_score)
+            score = segment.score or default_score
             if (
                 device_params is not None
                 and is_text_valid(value, device_params)
@@ -238,6 +238,6 @@ def draw_segments(image, segments):
     color = np.minimum(np.median(image, axis=[0, 1])+100,[255,255,255])
     for s in segments:
         cv2.rectangle(image,(int(s.left),int(s.top)),(int(s.right),int(s.bottom)),color, 1)
-        cv2.putText(img=image, text=str(f"{s.name}: {s.none}"), org=(s.left, s.bottom + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+        cv2.putText(img=image, text=str(f"{s.name}: {s.value}"), org=(s.left, s.bottom + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
             fontScale=1, color=color, thickness=1)
     return image

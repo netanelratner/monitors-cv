@@ -9,9 +9,10 @@ from pylab import imshow, show
 from cvmonitor.ocr.utils import get_fields_info, is_text_valid, add_decimal_notation
 from ..ocr.utils import get_ocr_expected_boxes
 from .. import ocr
-from ..qr import find_qrcode
-from ..image_align import align_by_qrcode
-from .. import qr, image_align
+from ..cv.qr import find_qrcode
+from ..cv.image_align import align_by_qrcode
+from ..cv import qr, image_align
+from cvmonitor.backend import data as Data
 import pylab
 
 
@@ -120,7 +121,7 @@ def test_ocr_by_segments():
     )
     devices = get_fields_info()
     text_spotting = ocr.text_spotting.text_spotting.Model()
-    expected_boxes = get_ocr_expected_boxes(segments["segments"], devices, 0.5, 0.6)
+    expected_boxes = get_ocr_expected_boxes([Data.Segment.parse_obj(x) for x in segments["segments"]], devices, 0.5, 0.6)
     texts, boxes, scores, _ = text_spotting.forward(
         image, expected_boxes=expected_boxes
     )

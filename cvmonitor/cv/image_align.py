@@ -8,7 +8,7 @@ from pyzbar import pyzbar
 import qrcode
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
-from .ocr import monitor_ocr
+from ..ocr import monitor_ocr
 from prometheus_client import Summary
 import pytesseract
 from pylab import imshow, show

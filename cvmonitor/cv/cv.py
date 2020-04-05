@@ -1,5 +1,5 @@
 from flask import Flask, Blueprint, request, abort, Response
-from typing import List
+from typing import List, Union
 import cv2
 import imageio
 import ujson as json
@@ -12,22 +12,21 @@ import qrcode
 import logging
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
-from .ocr import monitor_ocr
+from ..ocr import monitor_ocr
 from prometheus_client import Summary
 import pytesseract
 from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
-from .ocr.text_spotting import text_spotting
+from ..ocr.text_spotting import text_spotting
 from cvmonitor.ocr.utils import get_fields_info, is_text_valid, draw_segments
-from .ocr.utils import get_ocr_expected_boxes
+from ..ocr.utils import get_ocr_expected_boxes
 from ..backend import data as Data
 np.set_printoptions(precision=3)
 
 
 class ComputerVision:
     def __init__(self):
-        self.blueprint = Blueprint("cv", __name__)
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
         self.devices = get_fields_info()
@@ -47,11 +46,11 @@ class ComputerVision:
             model_type=sportting_model,
         )
 
-    def detect_codes(self, jpeg_data: bytes) -> Data.Codes:
+    def detect_codes(self, jpeg_data: bytes) -> List[Data.Codes]:
         image = np.asarray(imageio.imread(jpeg_data))
-        return  read_codes(image)
+        return  [Data.Codes.parse_obj(x) for x in read_codes(image)]
 
-    def align_image(self, jpeg_data: bytes, corners: Data.ScreenCorners) -> (bytes, str):
+    def align_image(self, jpeg_data: bytes, corners: Union[Data.ScreenCorners,None]=None) -> (bytes, Union[str,None]):
         use_exif = os.environ.get("CVMONITOR_ORIENT_BY_EXIF", "TRUE") == "TRUE"
         use_qr = os.environ.get("CVMONITOR_ORIENT_BY_QR", "FALSE") == "TRUE"
         qrprefix = str(os.environ.get("CVMONITOR_QR_PREFIX", "cvmonitor"))
@@ -71,10 +70,12 @@ class ComputerVision:
             imdata.seek(0)
             with open("original_image.jpg", "wb") as f:
                 f.write(imdata)
-
+        monitor_id = None
         if detected_qrcode is None:
-            raise RuntimeError("Could not align the image by qr code, no such code detected")
-        monitor_id = detected_qrcode.data.decode()
+            if align_image_by_qr:
+                raise RuntimeError("Could not align the image by qr code, no such code detected")
+        else:
+            monitor_id = detected_qrcode.data.decode()
 
         if align_image_by_qr:
             logging.debug("Trying to align image by qr code")
@@ -105,21 +106,22 @@ class ComputerVision:
         threshold = float(os.environ.get("CVMONITOR_SERVER_OCR_THRESHOLD", "0.8"))
 
         image = np.asarray(imageio.imread(record.image))
+        segments: List[Data.Segment] = record.segments or []
         # Suggest segments
-        if not record.segments:
+        if not segments:
             # Let's run segment detection.
             texts, boxes, scores, _ = self.text_spotting.forward(image)
-            segments: List[Data.Segment] = []
             for text, box, score in zip(texts, boxes, scores):
                 if score > segment_threshold:
-                    segment = Data.Segment()
-                    segment.value =  text
-                    segment.left =  float(box[0])
-                    segment.top =  float(box[1])
-                    segment.right =  float(box[2])
-                    segment.bottom =  float(box[3])
-                    segment.score =  float(score)
-                    segment.source =  "server"
+                    segment = Data.Segment(
+                        value =  text,
+                        left =  float(box[0]),
+                        top =  float(box[1]),
+                        right =  float(box[2]),
+                        bottom =  float(box[3]),
+                        score =  float(score),
+                        source =  "server",
+                    )
                     segments.append(segment)
             logging.debug(f"Detections (new): {segments}")
             return segments
@@ -143,9 +145,6 @@ class ComputerVision:
                 segments[eb["index"]].score = float(score)
                 segments[eb["index"]].source = "server"
 
-        for s in segments:
-            if 'value' not in s:
-                s.value=None
         return segments
 
 

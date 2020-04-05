@@ -61,7 +61,7 @@ def read_codes(image):
                     "left": obj.rect.left,
                     "bottom": obj.rect.top + obj.rect.height,
                     "right": obj.rect.left + obj.rect.width,
-                    "type": obj.type,
+                    "code_type": obj.type,
                 }
             )
         except:
@@ -72,7 +72,6 @@ def read_codes(image):
 def find_qrcode(image, prefix):
     if len(image.shape) == 3:
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-
     decodedObjects = pyzbar.decode(image)
     if not decodedObjects:
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(64, 64))
