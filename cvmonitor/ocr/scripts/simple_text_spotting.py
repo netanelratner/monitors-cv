@@ -11,17 +11,19 @@ if __name__ == '__main__':
     # ann_file = None
     # img_path = 'cvmonitor/test/data/11.jpg'
 
-    # ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
-    # img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
+    ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
+    img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
+    # ann_file = 'cvmonitor/test/data/IMG-20200405-WA0005.txt'
+    # img_path = 'cvmonitor/test/data/IMG-20200405-WA0005.jpg'
 
-    ann_file = 'data/monitors/BneiZion2/out.txt'
-    img_path = 'data/monitors/BneiZion2/00000001.tiff'
+    # ann_file = 'data/monitors/BneiZion2/out.txt'
+    # img_path = 'data/monitors/BneiZion2/00000001.tiff'
 
     output_dir = 'cvmonitor/ocr/scripts/output'
     os.makedirs(output_dir, exist_ok=True)
     img_name = os.path.basename(img_path).split('.')[0]
 
-    predict_on_warped = True
+    predict_on_warped = False
     display = False
 
     aligned_image_size = (1280, 768)  # (width, height)! and NOT (rows, cols)
@@ -31,12 +33,15 @@ if __name__ == '__main__':
     visualize = True
     prob_threshold = 0.5
     max_seq_len = 6
-    iou_threshold = 0.4
+    iou_threshold = 0.01 # 0.4
     model_type = 'FP32'  # 'FP16' # 'FP32'
     rgb2bgr = False # if True, channels order will be reversed
 
     # load image
     img = cv2.imread(img_path, -1)
+
+    # cv2.imshow('image', img)
+    # cv2.waitKey(0)
 
     # read annotations
     if ann_file is not None:
@@ -63,14 +68,15 @@ if __name__ == '__main__':
             # cv2.imshow('warped', img_warped)
             # cv2.waitKey(0)
 
-            # get expected boxes
-            expected_boxes = process_annotation_dict(ann)
+        # get expected boxes
+        expected_boxes = process_annotation_dict(ann)
+
     else:
+
         expected_boxes = None
 
     # load model
     model = text_spotting.Model(visualize=visualize, prob_threshold=prob_threshold, max_seq_len=max_seq_len, iou_threshold=iou_threshold, model_type=model_type, rgb2bgr=rgb2bgr)
-
 
     # predict text
     texts, boxes, scores, frame = model.forward(img, expected_boxes=expected_boxes)

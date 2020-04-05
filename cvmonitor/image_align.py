@@ -165,7 +165,7 @@ def align_by_qrcode(image : np.ndarray, detected_qrcode, qrsize=100, boundery = 
     return warped, M
 
 
-def align_by_4_corners(image, corners, new_image_size = (1280, 768), margin_percent=10):
+def align_by_4_corners(image, corners, new_image_size=(1280, 768), margin_percent=10):
     """
     warp an image so the screen is aligned, and then crop the screen (with desired margin), and resize it to a desired size
 

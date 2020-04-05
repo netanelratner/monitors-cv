@@ -106,13 +106,69 @@ def iou(boxA, boxB):
     return iou
 
 
-def match_boxes(expected, actual):
+def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1):
+
+    """
+    iou_th and adjacent_boxes_max_iou are used for secondary match:
+    secondary actual match should have IOU of at least iou_th with expected box
+    and IOU of at most adjacent_boxes_max_iou with first actual match
+    """
+
     matches = np.zeros((len(expected),len(actual)),dtype=np.float32)
     for i, be in enumerate(expected):
         for j, ba in enumerate(actual):
             matches[i,j]=iou(be,ba)
-    matches_indices = np.argsort(matches,axis=1,kind='stable')[:,-1]
-    return matches_indices, matches[range(matches.shape[0]), matches_indices]
+
+    matches_indices_sorted = np.argsort(matches,axis=1,kind='stable')[:, ::-1] # descending order
+
+    matches_indices = matches_indices_sorted[:, 0]
+    matches_scores = matches[range(matches.shape[0]), matches_indices]
+
+
+    # calculate secondary matches
+
+    matches_indices_secondary = []
+    matches_scores_secondary = []
+
+    rows, cols = matches_indices_sorted.shape
+
+    for r in range(rows):
+
+        ind_list = []
+        score_list = []
+
+        actual1 = actual[r]
+
+        for c in range(cols):
+
+            # if c == ind:
+            #     continue # skip
+
+            ind = matches_indices_sorted[r, c]
+            score = matches[r, ind]
+
+            if score > iou_th: # this checks IOU between actual and expected
+
+                # check IOU between first and current actual
+                actual2 = actual[ind]
+                iou_act1_act2 = iou(actual1 ,actual2)
+
+                if iou_act1_act2 < adjacent_boxes_max_iou:
+
+                    ind_list.append(ind)
+                    score_list.append(score)
+                    # break # take only 1 secondary match
+            else:
+                break # since scores are sorted all remaining scores are lower than iou_th
+
+        if len(ind_list) == 0:
+            ind_list.append(-1)
+            score_list.append(-1)
+
+        matches_indices_secondary.append(ind_list)
+        matches_scores_secondary.append(score_list)
+
+    return matches_indices, matches_scores, matches_indices_secondary, matches_scores_secondary
 
 
 class Model():
@@ -243,7 +299,10 @@ class Model():
             text_features = []
             matches = []
             names = []
-            best_matches, match_score = match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
+
+            best_matches, match_score,  matches_indices_secondary, matches_scores_secondary = \
+                match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
+
             for i,(match, score)  in enumerate(zip(best_matches, match_score)):
                 log.info(f'box: {initial_boxes[match]} scored iou of {score}')
                 scores.append(initial_scores[match])
