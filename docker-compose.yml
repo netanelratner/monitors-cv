@@ -4,6 +4,7 @@ volumes:
   mongo-db:
   grafana-storage:
   prom-data:
+  logs:
 
 services:
   jaeger:
@@ -85,6 +86,8 @@ services:
       CVMONITOR_THRESHOLD_CHARACTER: ${CVMONITOR_THRESHOLD_CHARACTER:-0.95}
     depends_on: 
        - jaeger
+    volumes:
+      - "logs:/opt/app/logs"
   backend:
     image: yehiyam/monitor-backend:v0.0.18
     restart: always
