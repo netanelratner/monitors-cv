@@ -172,6 +172,9 @@ def annotation_names_mapping():
     names2anns['etco2'] = 'etCO2'
     names2anns['screen'] = None
 
+    names2anns['Total Rate'] = 'Total Rate'
+
+
     anns2names = {}
     for key, val in names2anns.items():
         if val is not None:

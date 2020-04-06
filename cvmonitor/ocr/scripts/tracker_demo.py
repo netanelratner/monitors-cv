@@ -19,6 +19,7 @@ FPS = 30.0
 # scenarioPath = '/media/dalya/data/DataSets/CV4Corona/Dataset300320_0600/Rambam1/'
 scenarioPath = 'cvmonitor/test/data'
 scenarioPath = '/home/moshes2/datasets/monitors/BneiZion4'
+scenarioPath = '/home/moshes2/datasets/monitors/Rambam3'
 
 # Find all images and sort them
 imagesList = os.listdir(scenarioPath)
@@ -58,6 +59,7 @@ for ind, imgName in enumerate(imagesList):
         plt.imshow(img_aligned)
         # plt.scatter(corners_warped[:,0], corners_warped[:,1], c='r')
         plt.show(block=False)
+        plt.pause(0.1)
 
 
         aaa=1

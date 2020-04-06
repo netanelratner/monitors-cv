@@ -8,13 +8,13 @@ from cvmonitor.ocr.utils import process_annotation_dict, read_annotation_file, c
 
 if __name__ == '__main__':
 
-    # ann_file = None
-    # img_path = 'cvmonitor/test/data/11.jpg'
+    ann_file = None
+    img_path = 'cvmonitor/test/data/11.jpg'
 
     # ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
     # img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
-    ann_file = 'cvmonitor/test/data/IMG-20200405-WA0005.txt'
-    img_path = 'cvmonitor/test/data/IMG-20200405-WA0005.jpg'
+    # ann_file = 'cvmonitor/test/data/IMG-20200405-WA0005.txt'
+    # img_path = 'cvmonitor/test/data/IMG-20200405-WA0005.jpg'
 
     # ann_file = 'data/monitors/BneiZion2/out.txt'
     # img_path = 'data/monitors/BneiZion2/00000001.tiff'

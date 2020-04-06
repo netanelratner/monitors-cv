@@ -136,7 +136,7 @@ def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, verti
         ind_list = []
         score_list = []
 
-        actual1 = actual[r]
+        actual1 = actual[matches_indices[r]]
         expect = expected[r]
 
         for c in range(cols):
@@ -160,7 +160,7 @@ def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, verti
                     h = bottom - top
 
                     left1, top1, right1, bottom1 = actual1  # [left, top, right, bottom]
-                    left2, top2, right2, bottom2 = actual1  # [left, top, right, bottom]
+                    left2, top2, right2, bottom2 = actual2  # [left, top, right, bottom]
 
                     # calculate mean height
                     h1 = bottom1 - top1
@@ -303,6 +303,10 @@ class Model():
         raw_masks = raw_masks[detections_filter]
         text_features = text_features[detections_filter]
 
+        # initialize text_features_secondary
+        text_features_secondary = [None for t in text_features]
+        matches_secondary = [None for t in text_features]
+
         boxes[:, 0::2] /= scale_x
         boxes[:, 1::2] /= scale_y
         matches = []
@@ -354,7 +358,7 @@ class Model():
                 boxes_secondary.append(initial_boxes[match_sec])
                 raw_masks_secondary.append(initial_raw_masks[match_sec])
                 text_features_secondary.append(initial_text_features[match_sec])
-                if score_sec > self.iou_threshold:
+                if (score_sec[0] is not None)  and (score_sec[0] > self.iou_threshold):
                     matches_secondary.append(match_sec)
                 else:
                     matches_secondary.append(None)
@@ -368,13 +372,6 @@ class Model():
                 if matches and matches[k]==None:
                     texts.append(None)
                     break
-                feature = self.text_enc_exec_net.infer({'input': feature})['output']
-                feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
-                feature = np.transpose(feature, (0, 2, 1))
-
-                hidden = np.zeros(self.hidden_shape)
-                prev_symbol_index = np.ones((1,)) * SOS_INDEX
-
                 device_name_params = {}
                 try:  # if expected_boxes:
                     name = names[k]
@@ -382,6 +379,13 @@ class Model():
                     max_seq_len = device_name_params['max_len']
                 except:  # else: # name is None
                     max_seq_len = self.max_seq_len
+
+                feature = self.text_enc_exec_net.infer({'input': feature})['output']
+                feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
+                feature = np.transpose(feature, (0, 2, 1))
+
+                hidden = np.zeros(self.hidden_shape)
+                prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
                 text = ''
                 for i in range(max_seq_len):
@@ -398,6 +402,49 @@ class Model():
 
                 # secondary text
                 # TODO: add secondary text recognition logic and concatenate to text
+                if matches_secondary[k] is not None:
+                    feature = self.text_enc_exec_net.infer({'input': feature_sec})['output']
+                    feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
+                    feature = np.transpose(feature, (0, 2, 1))
+
+                    hidden = np.zeros(self.hidden_shape)
+                    prev_symbol_index = np.ones((1,)) * SOS_INDEX
+
+                    text_sec = ''
+                    for i in range(max_seq_len):
+                        decoder_output = self.text_dec_exec_net.infer({
+                            'prev_symbol': prev_symbol_index,
+                            'prev_hidden': hidden,
+                            'encoder_outputs': feature})
+                        symbols_distr = decoder_output['output']
+                        prev_symbol_index = int(np.argmax(symbols_distr, axis=1))
+                        if prev_symbol_index == EOS_INDEX:
+                            break
+                        text_sec += alphabet[prev_symbol_index]
+                        hidden = decoder_output['hidden']
+
+                    if len(text_sec) > 0:
+                        # find left and right
+                        left1, top1, right1, bottom1 = boxes[k]
+                        left2, top2, right2, bottom2 = boxes_secondary[k]
+
+                        center1 = 0.5 * (left1 + right1)
+                        center2 = 0.5 * (left2 + right2)
+
+                        # merge text
+                        if center1 < center2:
+                            text = text + text_sec
+                        else:
+                            text = text_sec + text
+
+                        # merge box
+                        # box: [left, top, right, bottom]
+                        boxes[k] = np.array([np.minimum(boxes[k][0], boxes_secondary[k][0]),  # left
+                                            np.minimum(boxes[k][1], boxes_secondary[k][1]),  # top
+                                            np.maximum(boxes[k][2], boxes_secondary[k][2]),  # right
+                                            np.maximum(boxes[k][3], boxes_secondary[k][3]),  # bottom
+                                            ])
+
 
                 if expected_boxes and (name is not None):
                     # treat decimal digits

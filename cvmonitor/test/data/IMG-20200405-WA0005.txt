@@ -1,2 +1,2 @@
-hr, val, 14, Position, 430, 380, 90, 70
+Total Rate, val, 14, Position, 430, 380, 90, 70
 
