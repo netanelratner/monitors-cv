@@ -372,12 +372,6 @@ class Model():
                 if matches and matches[k]==None:
                     texts.append(None)
                     break
-                feature = self.text_enc_exec_net.infer({'input': feature})['output']
-                feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
-                feature = np.transpose(feature, (0, 2, 1))
-
-                hidden = np.zeros(self.hidden_shape)
-                prev_symbol_index = np.ones((1,)) * SOS_INDEX
 
                 device_name_params = {}
                 try:  # if expected_boxes:
