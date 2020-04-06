@@ -28,7 +28,7 @@ from matplotlib import animation
 from cvmonitor.ocr import monitor_ocr
 from cvmonitor import cv
 from pylab import imshow, show
-from cvmonitor.ocr.utils import get_fields_info, get_field_rand_value
+from cvmonitor.ocr.utils import get_fields_info, get_field_rand_value, change_box_type
 from cvmonitor.ocr.utils import get_ocr_expected_boxes
 
 from cvmonitor.ocr.text_spotting import text_spotting
@@ -290,6 +290,86 @@ def fill_rooms(device_count) -> List[Device]:
         active_devices.append(Device('respirator', patient, room))
     return active_devices
 
+def fill_from_real_data(gt_path):
+    annotations = read_annotation_file(gt_path)
+    names2anns, anns2names = annotation_names_mapping()
+    for idx, ann in enumerate(annotations):
+
+        device.index = 0
+        device.monitor_id = None
+        device.device_type = device_type
+        device.image_size = [1000, 1200]
+
+        segments = []
+        for field in ann.keys():
+            if field=='image_path':
+                continue
+            pos = ann[field]['box']
+            segment = {"top":pos[1], "left":pos[0], "bottom":pos[1] + pos[3], "right":pos[0] + pos[2], "name":names2anns(field)}
+            segments.append(segment)
+
+
+        class Device():
+
+            def __init__(self, device_type, patient, room_number):
+                self.index = 0
+                self.monitor_id = None
+                self.device_type = device_type
+                self.image_size = [1000, 1200]
+                self.segments = create_segments(device_type, 7, 8, self.image_size)
+                self.fontScale = [random.randint(2, 7) for _ in self.segments]
+                self.thickness = [random.randint(3, 8) for _ in self.segments]
+                self.draw_segments = copy.deepcopy(self.segments)
+                self.values, self.colors = fill_segments(self.segments, device_type)
+                qrcode, self.qrtext = get_qr_code(device_type)
+                self.qrcode = rotate_image(qrcode, float(random.randint(-10, 10)))
+                self.patient = patient
+                self.room_number = room_number
+
+            def picture(self):
+                return generate_picture(
+                    self.qrcode, self.image_size, self.draw_segments, self.values, self.colors,
+                    self.fontScale, self.thickness,
+                )
+
+        def create_segments(device_type, fontScale, thickness, image_size=[1000, 1200], x_start=300, y_start=200):
+            size = np.array(cv2.getTextSize(text=str('COFFE'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,
+                                            thickness=thickness)[0]) + 10
+            # size=np.array(cv2.getTextSize(text=str('CO'), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=fontScale,thickness=thickness)[0])+10
+            y_step = size[1] + 50
+            x_step = size[0] + 50
+            x = x_start
+            y = y_start
+            segments = []
+            fields = get_fields_info([device_type])
+            for m in fields:
+                if x + x_step >= image_size[1] - 50:
+                    x = x_start
+                    y += y_step
+                segments.append({
+                    "top": max(y - 20, 0),
+                    "left": max(x - 20, 0),
+                    "bottom": int(min(y + size[1], image_size[0] - 10)),
+                    "right": int(min(x + size[0], image_size[1] - 10)),
+                    "name": m,
+
+                })
+                if x + x_step < image_size[1] - 50:
+                    x += x_step
+            return segments
+
+        def fill_segments(segments, device_type):
+            values = []
+            colors = []
+            fields = get_fields_info([device_type])
+            for s in segments:
+                values.append({"name": s['name'], "value": get_field_rand_value(fields[s['name']])})
+                colors.append((random.randint(20, 255), random.randint(20, 255), random.randint(20, 255)))
+            return values, colors
+
+
+
+
 def order_points(pts):
     """
     order such that [top-left,top-right,bottom-right,bottom-left]
@@ -496,11 +576,14 @@ def add_devices(url: str, active_devices: List[Device]):
 
 
 
-def generate_data(url):
+def generate_data(url, gt_path, real_data_flag=False):
     if os.path.exists('devices.pkl'):
         active_devices = pickle.load(open('devices.pkl', 'rb'))
     else:
-        active_devices = fill_rooms(5)
+        if real_data_flag:
+            active_devices = fill_from_real_data(gt_path)
+        else:
+            active_devices = fill_rooms(5)
         pickle.dump(active_devices, open('devices.pkl','wb'))
     
     for d in active_devices:
@@ -581,4 +664,6 @@ if __name__ == "__main__":
     if args.sim:
         simulate_monitor(args.url)
     else:
-        generate_data(args.url)
+        real_data_flag = False
+        gt_path = 'data/monitors/BneiZion2/out.txt'
+        generate_data(url, gt_path, real_data_flag)

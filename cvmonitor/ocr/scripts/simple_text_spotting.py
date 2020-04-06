@@ -8,16 +8,14 @@ from cvmonitor.ocr.utils import process_annotation_dict, read_annotation_file, c
 
 if __name__ == '__main__':
 
-    ann_file = None
-    img_path = 'cvmonitor/test/data/11.jpg'
+    # ann_file = None
+    # img_path = 'cvmonitor/test/data/11.jpg'
 
     # ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
     # img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
-    # ann_file = 'cvmonitor/test/data/IMG-20200405-WA0005.txt'
-    # img_path = 'cvmonitor/test/data/IMG-20200405-WA0005.jpg'
 
-    # ann_file = 'data/monitors/BneiZion2/out.txt'
-    # img_path = 'data/monitors/BneiZion2/00000001.tiff'
+    ann_file = 'data/monitors/BneiZion2/out.txt'
+    img_path = 'data/monitors/BneiZion2/00000001.tiff'
 
     output_dir = 'cvmonitor/ocr/scripts/output'
     os.makedirs(output_dir, exist_ok=True)
@@ -33,7 +31,7 @@ if __name__ == '__main__':
     visualize = True
     prob_threshold = 0.5
     max_seq_len = 6
-    iou_threshold = 0.01 # 0.4
+    iou_threshold = 0.4
     model_type = 'FP32'  # 'FP16' # 'FP32'
     rgb2bgr = False # if True, channels order will be reversed
 
@@ -77,6 +75,7 @@ if __name__ == '__main__':
 
     # load model
     model = text_spotting.Model(visualize=visualize, prob_threshold=prob_threshold, max_seq_len=max_seq_len, iou_threshold=iou_threshold, model_type=model_type, rgb2bgr=rgb2bgr)
+
 
     # predict text
     texts, boxes, scores, frame = model.forward(img, expected_boxes=expected_boxes)

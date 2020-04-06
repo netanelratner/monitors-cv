@@ -171,6 +171,7 @@ def annotation_names_mapping():
     names2anns['temp'] = 'Temp'
     names2anns['etco2'] = 'etCO2'
     names2anns['screen'] = None
+    names2anns['image_path'] = None
 
     names2anns['Total Rate'] = 'Total Rate'
 
@@ -237,7 +238,8 @@ def read_annotation_file(file_path):
     with open(file_path, 'r') as f:
         lines = f.read().splitlines()
 
-    ann = {}
+    ann = []
+    curr_ann = {}
     for line in lines:
 
         words = line.split(',')
@@ -247,11 +249,17 @@ def read_annotation_file(file_path):
         N = len(words)
         while n < N: # iterate over all words in current line
 
+            if words[0] == 'image_path':
+                if curr_ann:
+                    ann.append(curr_ann)
+                curr_ann = {words[0]: '/' + '/'.join(words[1].split('/')[-4:])}
+                break
+
             if n == 0:
 
                 current_dict = {}
                 key = words[n]
-                ann[key] = current_dict
+                curr_ann[key] = current_dict
                 n += 1
 
             else:
@@ -283,9 +291,9 @@ def read_annotation_file(file_path):
                         current_dict['val'] = np.array(val, dtype=np.float)
                         n += 2
 
-                    elif word == 'Position': # dtype is int
+                    elif word == 'Position':
                         # array of [left, top, width, height] or maybe [top, left , width, height]
-                        current_dict['box'] = np.array([words[n+1], words[n+2], words[n+3], words[n+4]], dtype=np.int)
+                        current_dict['box'] = np.array([words[n+1], words[n+2], words[n+3], words[n+4]], dtype=np.float)
                         n += 5
 
     return ann
@@ -386,16 +394,19 @@ def process_annotation_dict(ann_dict):
 
     for key, val in ann_dict.items():
 
-        name = names2anns[key]
+        if key == 'image_path':
+            continue
 
-        bbox = change_box_type(val['box'], type_in='ltwh', type_out='ltrb')
+        if val:
+            name = names2anns[key]
+            bbox = change_box_type(val['box'], type_in='ltwh', type_out='ltrb')
 
-        bbox = enlarge_box(bbox, percent=0.2)
+            bbox = enlarge_box(bbox, percent=0.2)
 
-        expected_box = {'name': name,
-                        'bbox': bbox,
-                        'true_val': val['val']}
+            expected_box = {'name': name,
+                            'bbox': bbox,
+                            'true_val': val['val']}
 
-        expected_boxes.append(expected_box)
+            expected_boxes.append(expected_box)
 
     return expected_boxes
