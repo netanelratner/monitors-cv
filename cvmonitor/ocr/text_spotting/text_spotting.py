@@ -287,7 +287,8 @@ class Model():
         log.info('running main network')
         outputs = self.mask_rcnn_exec_net.infer({'im_data': input_image, 'im_info': input_image_info})
         log.info('main network finished')
-
+        if len(outputs['boxes'])==0:
+            return [], [],[],[]
         # Parse detection results of the current request
         boxes = outputs['boxes']
         scores = outputs['scores']

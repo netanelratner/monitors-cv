@@ -283,14 +283,15 @@ class ComputerVision:
             else:
                 texts, scores = self.model_ocr.ocr(expected_boxes, image, threshold)
             should_log = False
-            for eb, text, score in zip(expected_boxes, texts, scores):
-                if score > threshold:
-                    if segments[eb["index"]].get("value") != text:
-                        should_log = True
-                    segments[eb["index"]]["value"] = text
-                    segments[eb["index"]]["score"] = float(score)
-                    segments[eb["index"]]["source"] = "server"
-            if should_log or random.randint(0,100)==0:
+            if texts:
+                for eb, text, score in zip(expected_boxes, texts, scores):
+                    if score > threshold:
+                        if segments[eb["index"]].get("value") != text:
+                            should_log = True
+                        segments[eb["index"]]["value"] = text
+                        segments[eb["index"]]["score"] = float(score)
+                        segments[eb["index"]]["source"] = "server"
+            if should_log or random.randint(0,100)==0 or not texts:
                 self.resultsLogger.log_ocr(image_data,data["segments"], {'expected':expected_boxes,'texts': texts, 'scores': [float(s) for s in scores]})
             for s in segments:
                 if 'value' not in s:

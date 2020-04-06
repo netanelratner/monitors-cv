@@ -84,10 +84,10 @@ def is_text_valid(text, device_name_params):
 
         val = dtype(text)
         
-        if val < (device_name_params.get('min') or -100000):
-            is_valid = False
-        if val > (device_name_params.get('max') or 100000):
-            is_valid = False
+        # if val < (device_name_params.get('min') or -100000):
+        #     is_valid = False
+        # if val > (device_name_params.get('max') or 100000):
+        #     is_valid = False
 
     return is_valid
 
