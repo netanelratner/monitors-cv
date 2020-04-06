@@ -30,6 +30,7 @@ from cvmonitor import cv
 from pylab import imshow, show
 from cvmonitor.ocr.utils import get_fields_info, get_field_rand_value
 from cvmonitor.ocr.utils import get_ocr_expected_boxes
+from cvmonitor.backend import data as Data
 QRSIZE=100
 
 SEND_TO_SERVER = False
@@ -321,7 +322,7 @@ def update_segments(image,segments,qrprefix='cvmonitor'):
     if detected_qrcode is None:
         raise RuntimeError("Could not detect QR")
     data = detected_qrcode.data.decode()
-    warped, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
+    warped, M = cv.cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
     segments = copy.deepcopy(segments)
     for i,s in enumerate(segments):
         V = np.array([
@@ -347,12 +348,12 @@ def draw_segements(image, segments,colors):
 
 #model_ocr = monitor_ocr.build_model()
 
-def send_picture(url: str, device: Device):
+def send_picture(url: str, device: Device, send_func = requests.post):
         image = device.picture()
         print(device.values)
         image = draw_segements(image, device.draw_segments,device.colors)
         
-        if SEND_TO_SERVER:
+        if SEND_TO_SERVER or requests.post != send_func:
             b = io.BytesIO()
             imageio.imwrite(b, image, format='jpeg')
             #imageio.imwrite(device.qrtext+f'.{device.index}.jpg', image, format='jpeg')
@@ -362,23 +363,27 @@ def send_picture(url: str, device: Device):
                 headers['X-MONITOR-ID']=str(device.monitor_id)
             else:
                 headers['X-MONITOR-ID']=str(device.qrtext)
-            headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
-            res = requests.post(url + f'/monitor_image', data=b,headers=headers)
+            headers['X-TIMESTAMP']=str(datetime.datetime.utcnow().isoformat())
+            res = send_func(url + f'/monitor_image', data=b,headers=headers)
+            if res.status_code != 200:
+                raise RuntimeError(res)
             res_data = res.json()
             print(res_data)
             if 'nextImageId' in res_data:
                 device.index = res_data['nextImageId']
             if 'monitorId' in res_data:
                 device.monitor_id = res_data['monitorId']
+            return res_data
         else:
             detected_qrcode = find_qrcode(image, '')
             if detected_qrcode is None:
                 raise RuntimeError("Could not detect QR")
             data = detected_qrcode.data.decode()
-            image, M = cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
+            image, M = cv.cv.align_by_qrcode(image, detected_qrcode, qrsize=QRSIZE, boundery = 50)
             segments = device.segments
             # FIXME: assume that image is in RGB (not BGR). if not - should fix code in monitor_ocr.detect()
-            expected_boxes = get_ocr_expected_boxes(segments,devices,0.5,0.6)
+            segments_data = [Data.Segment.parse_obj(x) for x in segments]
+            expected_boxes = get_ocr_expected_boxes(segments_data,devices,0.5,0.6)
             #texts = model_ocr.ocr(expected_boxes, image, threshold=0.2)
             #print(texts)
 
@@ -389,20 +394,23 @@ def send_all_pictures(url, active_devices: List[Device]):
         device = active_devices[di]
         send_picture(url, device)
 
+def add_device(url: str, device: Device, send_func=requests.post):
+    
+    device_json = {
+        "monitorId": device.qrtext,
+        "patientId": device.patient,
+        "imageId":0,
+        "roomId": device.room_number,
+        "deviceCategory": device.device_type,
+        "segments": device.segments
+    }
+    return send_func(url + f'/monitor/{device.qrtext}', json=device_json)
 
-def add_devices(url: str, active_devices: List[Device]):
+def add_devices(url: str, active_devices: List[Device], send_func=requests.post):
 
     for di in range(len(active_devices)):
         device = active_devices[di]
-        device_json = {
-            "monitorId": device.qrtext,
-            "patientId": device.patient,
-            "imageId":0,
-            "roomId": device.room_number,
-            "deviceCategory": device.device_type,
-            "segments": device.segments
-        }
-        res=requests.post(url + f'/monitor/{device.qrtext}', json=device_json)
+        res = add_device(url, device, send_func=send_func)
         print(res.text)
 
 

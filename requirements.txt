@@ -34,3 +34,5 @@ jaeger-client
 fastapi
 uvicorn
 aioredis
+redis
+python-multipart

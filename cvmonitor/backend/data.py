@@ -48,9 +48,8 @@ class DeviceRecord(BaseModel):
     imageId: str
     timestamp: datetime
     monitorId: str
-    deviceCategory: str
     segments: Optional[List[Segment]] = None
-    image: bytes
+    image: Optional[bytes] = None 
 
 
 class MonitorDataGetResponse(BaseModel):
@@ -59,8 +58,8 @@ class MonitorDataGetResponse(BaseModel):
     timestamp: datetime
     patientId: Union[str, None] = None
     roomId: Union[str, None] = None
-    deviceCategory: str
-    segments: List[Segment]
+    deviceCategory: Optional[str]
+    segments: Optional[List[Segment]] = None
 
 class MonitorDataPost(BaseModel):
     imageId: str
@@ -69,9 +68,9 @@ class MonitorDataPost(BaseModel):
     segments: List[Segment]
 
 class MonitorImagePostResponse(BaseModel):
-    frameRate: int
+    frameRate: float
     monitorId: str
-    nextImage: str
+    nextImageId: str
     minResolutionWidth: int
     minResolutionHeight: int
     
