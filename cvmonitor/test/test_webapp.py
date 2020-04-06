@@ -136,7 +136,7 @@ def test_ocr_no_segments(client):
 
     box_res = [[s["left"], s["top"], s["right"], s["bottom"]] for s in segments]
     box_expected = bbox_list
-    best_matches, _ = text_spotting.match_boxes(box_res, box_expected)
+    best_matches, _, _, _ = text_spotting.match_boxes(box_res, box_expected)
     for i in range(len(best_matches)):
         assert text_spotting.iou(box_res[i], box_expected[best_matches[i]]) > 0.75
         assert expected[best_matches[i]]["value"] in segments[i]["value"]
