@@ -362,7 +362,18 @@ def send_picture(url: str, device: Device):
                 headers['X-MONITOR-ID']=str(device.monitor_id)
             else:
                 headers['X-MONITOR-ID']=str(device.qrtext)
-            headers['X-TIMESTEMP']=str(datetime.datetime.utcnow().isoformat())
+            timestamp = str(datetime.datetime.utcnow().isoformat())
+            headers['X-TIMESTEMP']=timestamp
+            # monitor_data = {
+            #     "imageId": device.monitor_id,
+            #     "timestamp" : str(datetime.datetime.utcnow().isoformat()),
+            #     "imageId": str(device.index),
+            #     "segments": copy.deepcopy(device.segments),
+            # }
+            # for s,v in zip(monitor_data['segments'],self.values):
+            #     s['value']
+            # import pdb; pdb.set_trace()
+            # res = requests.post(url + f'/monitor_data/{device.monitor_id}', json=monitor_data)
             res = requests.post(url + f'/monitor_image', data=b,headers=headers)
             res_data = res.json()
             print(res_data)

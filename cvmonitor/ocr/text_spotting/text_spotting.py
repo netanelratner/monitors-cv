@@ -334,7 +334,7 @@ class Model():
             matches_secondary = []
 
 
-            best_matches, match_score,  matches_indices_secondary, matches_scores_secondary = \
+            best_matches, match_score,  matches_indices_secondary,  matches_scores_secondary = \
                 match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
 
             for i,(match, score, match_sec, score_sec)  in enumerate(zip(best_matches, match_score, matches_indices_secondary, matches_scores_secondary)):

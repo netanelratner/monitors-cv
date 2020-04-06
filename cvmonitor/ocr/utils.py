@@ -1,7 +1,7 @@
 import random
 import cv2
 import numpy as np
-
+import logging
 def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reprocess):
     """
     Create expected boxes from segments.
@@ -10,30 +10,33 @@ def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reproc
     """
     expected_boxes = []
     for index, segment in enumerate(segments):
-        expected = {
-            "bbox": [
-                segment["left"],
-                segment["top"],
-                segment["right"],
-                segment["bottom"],
-            ],
-            "name": segment["name"],
-            "index": index,
-        }
-        needs_ocr = True
-        if "value" in segment and "name" in segment:
-            value = segment["value"]
-            name = segment["name"]
-            device_params = devices.get(name)
-            score = segment.get("score", default_score)
-            if (
-                device_params is not None
-                and is_text_valid(value, device_params)
-                and score > min_score_to_reprocess
-            ):
-                needs_ocr = False
-        if needs_ocr:
-            expected_boxes.append(expected)
+        try:
+            expected = {
+                "bbox": [
+                    segment["left"],
+                    segment["top"],
+                    segment["right"],
+                    segment["bottom"],
+                ],
+                "name": segment["name"],
+                "index": index,
+            }
+            needs_ocr = True
+            if "value" in segment and "name" in segment:
+                value = segment["value"]
+                name = segment["name"]
+                device_params = devices.get(name)
+                score = segment.get("score", default_score)
+                if (
+                    device_params is not None
+                    and is_text_valid(value, device_params)
+                    and score > min_score_to_reprocess
+                ):
+                    needs_ocr = False
+            if needs_ocr:
+                expected_boxes.append(expected)
+        except Exception:
+            logging.exception(f"error adding box for {segment}")
     return expected_boxes
 
 
@@ -66,6 +69,8 @@ def is_text_valid(text, device_name_params):
         is_valid : bool
             True if text is valid, False otherwise
     """
+    if text is None:
+        return False
 
     is_valid = True
 
