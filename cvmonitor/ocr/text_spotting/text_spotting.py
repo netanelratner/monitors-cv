@@ -371,7 +371,7 @@ class Model():
             try: 
                 if matches and matches[k]==None:
                     texts.append(None)
-                    break
+                    continue
 
                 device_name_params = {}
                 try:  # if expected_boxes:
