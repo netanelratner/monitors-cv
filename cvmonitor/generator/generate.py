@@ -32,7 +32,7 @@ from cvmonitor.ocr.utils import get_fields_info, get_field_rand_value, change_bo
 from cvmonitor.ocr.utils import get_ocr_expected_boxes
 
 from cvmonitor.ocr.text_spotting import text_spotting
-from cvmonitor.ocr.utils import annotation_names_mapping, is_int, enlarge_box, read_annotation_file, change_corners_type
+from cvmonitor.ocr.utils import annotation_names_mapping, is_int, enlarge_box, read_annotation_file, change_corners_type, process_annotation_dict
 
 QRSIZE=100
 
@@ -431,10 +431,13 @@ def draw_segements(image, segments,colors):
 
 model_ocr = monitor_ocr.build_model()
 
-def send_picture(url: str, device: Device):
-        image = device.picture()
-        print(device.values)
-        image = draw_segements(image, device.draw_segments,device.colors)
+def send_picture(url: str, device: Device, real_data_flag=False):
+        if real_data_flag:
+            ann = device
+        else:
+            image = device.picture()
+            print(device.values)
+            image = draw_segements(image, device.draw_segments,device.colors)
         
         if SEND_TO_SERVER:
             b = io.BytesIO()
@@ -460,14 +463,15 @@ def send_picture(url: str, device: Device):
             #     raise RuntimeError("Could not detect QR")
             # data = detected_qrcode.data.decode()
 
-            ann_file = None
+            # ann_file = None
             # ann_file = 'cvmonitor/test/data/BneiZIon4_1.txt'
             # img_path = 'cvmonitor/test/data/BneiZIon4_1.tiff'
 
             output_dir = 'output'
             os.makedirs(output_dir, exist_ok=True)
             # img_name = os.path.basename(img_path).split('.')[0]
-            img_name = device.qrtext
+            # img_name = device.qrtext
+            img_name = ann['image_path'].split('/')[-1]
 
             predict_on_warped = False
             display = False
@@ -479,54 +483,53 @@ def send_picture(url: str, device: Device):
             visualize = True
             prob_threshold = 0.5
             max_seq_len = 6
-            iou_threshold = 0.4
+            iou_threshold = 0.01 # 0.4
             model_type = 'FP32'  # 'FP16' # 'FP32'
             rgb2bgr = True  # if True, channels order will be reversed
 
             # load image
-            # img = cv2.imread(img_path, -1)
+            image = cv2.imread(ann['image_path'], -1)
 
-            img = image
 
-            # read annotations
-            if ann_file is not None:
-
-                ann = read_annotation_file(ann_file)
-
-                # get screen corners
-                ann_screen = ann.pop('screen', None)
-                if ann_screen is not None:
-                    # get annotation corners
-                    corners_ann = ann_screen['corners']
-
-                    # change corners type
-                    corners = change_corners_type(corners_ann, type_in='xxyy', type_out='xyxy')
-
-                    # align img and annotions by corners
-                    # img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
-                    img_warped, M = align_by_4_corners(img, corners, new_image_size=aligned_image_size,
-                                                       margin_percent=align_margin_percent)
-
-                    # note that bounding boxes need not be aligned, since they will be taken from the aligned image
-
-                    # cv2.imshow('image', img)
-                    # cv2.imshow('warped', img_warped)
-                    # cv2.waitKey(0)
-
-                    # get expected boxes
-                    expected_boxes = process_annotation_dict(ann)
-            else:
-                expected_boxes = None
+            # # read annotations
+            # if ann_file is not None:
+            # 
+            #     ann = read_annotation_file(ann_file)
+            # 
+            #     # get screen corners
+            #     ann_screen = ann.pop('screen', None)
+            #     if ann_screen is not None:
+            #         # get annotation corners
+            #         corners_ann = ann_screen['corners']
+            # 
+            #         # change corners type
+            #         corners = change_corners_type(corners_ann, type_in='xxyy', type_out='xyxy')
+            # 
+            #         # align img and annotions by corners
+            #         # img_warped, M = align_by_4_corners(img, corners, shape_out=(1280,768), margin_percent=0.)
+            #         img_warped, M = align_by_4_corners(image, corners, new_image_size=aligned_image_size,
+            #                                            margin_percent=align_margin_percent)
+            # 
+            #         # note that bounding boxes need not be aligned, since they will be taken from the aligned image
+            # 
+            #         # cv2.imshow('image', img)
+            #         # cv2.imshow('warped', img_warped)
+            #         # cv2.waitKey(0)
+            # 
+            #         # get expected boxes
+            expected_boxes = process_annotation_dict(ann)
+            # else:
+            #     expected_boxes = None
 
             # load model
             model = text_spotting.Model(visualize=visualize, prob_threshold=prob_threshold, max_seq_len=max_seq_len,
                                         iou_threshold=iou_threshold, model_type=model_type, rgb2bgr=rgb2bgr)
 
             # predict text
-            texts, boxes, scores, frame = model.forward(img, expected_boxes=expected_boxes)
+            texts, boxes, scores, frame = model.forward(image, expected_boxes=expected_boxes)
 
             # save output
-            out_name = os.path.join(output_dir, img_name + '.png')
+            out_name = os.path.join(output_dir, img_name)
             cv2.imwrite(out_name, frame)
 
             if display:
@@ -574,38 +577,39 @@ def add_devices(url: str, active_devices: List[Device]):
         print(res.text)
 
 
-
-
 def generate_data(url, gt_path, real_data_flag=False):
-    if os.path.exists('devices.pkl'):
-        active_devices = pickle.load(open('devices.pkl', 'rb'))
+
+    if real_data_flag:
+        annotations = read_annotation_file(gt_path)
+        for ann in annotations:
+            send_picture(url, ann, real_data_flag)
     else:
-        if real_data_flag:
-            active_devices = fill_from_real_data(gt_path)
+        if os.path.exists('devices.pkl'):
+            active_devices = pickle.load(open('devices.pkl', 'rb'))
         else:
             active_devices = fill_rooms(5)
-        pickle.dump(active_devices, open('devices.pkl','wb'))
-    
-    for d in active_devices:
-        picture=d.picture()
-        picture, new_segments =update_segments(picture,d.segments,qrprefix='cvmonitor')
-        d.segments = new_segments
-        picture=draw_segements(picture,new_segments,d.colors)
-        try:
-            cv2.imwrite(d.qrtext+'.jpg', picture)
-        except:
-            cv2.imwrite(d.qrtext+'.jpg', d.picture())
-            print(d.qrtext)
-            exit(-1)
-    send_all_pictures(url, active_devices)
-    if not SEND_TO_SERVER:
-        exit(0)
-    add_devices(url, active_devices)
-    while True:
-        send_all_pictures(url, active_devices)
+            pickle.dump(active_devices, open('devices.pkl','wb'))
+
         for d in active_devices:
-            d.change_values()
-        time.sleep(1)
+            picture=d.picture()
+            picture, new_segments =update_segments(picture,d.segments,qrprefix='cvmonitor')
+            d.segments = new_segments
+            picture=draw_segements(picture,new_segments,d.colors)
+            try:
+                cv2.imwrite(d.qrtext+'.jpg', picture)
+            except:
+                cv2.imwrite(d.qrtext+'.jpg', d.picture())
+                print(d.qrtext)
+                exit(-1)
+        send_all_pictures(url, active_devices)
+        if not SEND_TO_SERVER:
+            exit(0)
+        add_devices(url, active_devices)
+        while True:
+            send_all_pictures(url, active_devices)
+            for d in active_devices:
+                d.change_values()
+            time.sleep(1)
 
 def simulate_monitor(url):
     matplotlib.use('tkAgg')
@@ -664,6 +668,7 @@ if __name__ == "__main__":
     if args.sim:
         simulate_monitor(args.url)
     else:
-        real_data_flag = False
+        real_data_flag = True
         gt_path = 'data/monitors/BneiZion2/out.txt'
+        # gt_path = 'data/monitors/BneiZion2_warped/out.txt'
         generate_data(url, gt_path, real_data_flag)

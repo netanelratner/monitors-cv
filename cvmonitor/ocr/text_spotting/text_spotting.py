@@ -371,7 +371,7 @@ class Model():
             try: 
                 if matches and matches[k]==None:
                     texts.append(None)
-                    break
+                    continue
                 device_name_params = {}
                 try:  # if expected_boxes:
                     name = names[k]
@@ -401,7 +401,6 @@ class Model():
                     hidden = decoder_output['hidden']
 
                 # secondary text
-                # TODO: add secondary text recognition logic and concatenate to text
                 if matches_secondary[k] is not None:
                     feature = self.text_enc_exec_net.infer({'input': feature_sec})['output']
                     feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))

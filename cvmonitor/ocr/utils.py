@@ -252,7 +252,7 @@ def read_annotation_file(file_path):
             if words[0] == 'image_path':
                 if curr_ann:
                     ann.append(curr_ann)
-                curr_ann = {words[0]: '/' + '/'.join(words[1].split('/')[-4:])}
+                curr_ann = {words[0]: '/'.join(words[1].split('/')[-4:])}
                 break
 
             if n == 0:
@@ -394,7 +394,7 @@ def process_annotation_dict(ann_dict):
 
     for key, val in ann_dict.items():
 
-        if key == 'image_path':
+        if key == 'image_path' or key == 'screen':
             continue
 
         if val:
