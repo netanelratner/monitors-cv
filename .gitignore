@@ -10,3 +10,4 @@ comopse/database/grafana/data/**/*
 compose/database/mongo/**
 build/
 cvmonitor/ocr/PreTrained/**
+log/
