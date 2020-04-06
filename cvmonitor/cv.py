@@ -1,5 +1,6 @@
 from flask import Flask, Blueprint, request, abort, Response
 import cv2
+import random
 import imageio
 import ujson as json
 import numpy as np
@@ -14,15 +15,29 @@ import matplotlib.pyplot as plt
 from .ocr import monitor_ocr
 from prometheus_client import Summary
 import pytesseract
+import copy
 from pylab import imshow, show
 from .qr import generate_pdf, find_qrcode, read_codes
 from .image_align import get_oriented_image, align_by_qrcode
 from .ocr.text_spotting import text_spotting
 from cvmonitor.ocr.utils import get_fields_info, is_text_valid, draw_segments
 from .ocr.utils import get_ocr_expected_boxes
-
+import time
 np.set_printoptions(precision=3)
 
+class ResultLogger():
+
+    def __init__(self):
+        self.basedir = './log/'
+        self.index = 0
+    
+    def log_ocr(self, image, segments, server_ocr):
+        self.index +=1
+        folder_name = self.basedir + time.strftime("%Y_%m_%d_%H")  
+        os.makedirs(folder_name,exist_ok=True)
+        json.dump({'segments':segments,'server_ocr':server_ocr}, open(f'{folder_name}/{self.index:09}.json','w'))
+        with open(f'{folder_name}/{self.index:09}.jpg','wb') as f:
+            f.write(image)
 
 class ComputerVision:
     def __init__(self):
@@ -30,6 +45,7 @@ class ComputerVision:
         self.qrDecoder = cv2.QRCodeDetector()
         self.model_ocr = None
         self.devices = get_fields_info()
+        self.resultsLogger = ResultLogger()
         prob_threshold = float(
             os.environ.get("CVMONITOR_SPOTTING_PROB_THRESHOLD", "0.3")
         )
@@ -226,9 +242,8 @@ class ComputerVision:
 
             data = request.json
             assert "image" in data
-            image = np.asarray(
-                imageio.imread(base64.decodebytes(data["image"].encode()))
-            )
+            image_data = base64.decodebytes(data["image"].encode())
+            image = np.asarray(imageio.imread(image_data))
             # Suggest segments
             if not data.get("segments"):
                 # Let's run segment detection.
@@ -249,7 +264,7 @@ class ComputerVision:
                         )
                 logging.debug(f"Detections (new): {segments}")
                 return json.dumps(segments), 200, {"content-type": "application/json"}
-            segments = data["segments"]
+            segments = copy.deepcopy(data["segments"])
             if len(segments) == 0:
                 logging.error("No segments")
                 return json.dumps([]), 200, {"content-type": "application/json"}
@@ -267,12 +282,16 @@ class ComputerVision:
                 )
             else:
                 texts, scores = self.model_ocr.ocr(expected_boxes, image, threshold)
+            should_log = False
             for eb, text, score in zip(expected_boxes, texts, scores):
                 if score > threshold:
+                    if segments[eb["index"]].get("value") != text:
+                        should_log = True
                     segments[eb["index"]]["value"] = text
                     segments[eb["index"]]["score"] = float(score)
                     segments[eb["index"]]["source"] = "server"
-
+            if should_log or random.randint(0,100)==0:
+                self.resultsLogger.log_ocr(image_data,data["segments"], {'expected':expected_boxes,'texts': texts, 'scores': [float(s) for s in scores]})
             for s in segments:
                 if 'value' not in s:
                     s['value']=None
