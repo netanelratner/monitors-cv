@@ -152,3 +152,18 @@ docker run <image-name> --net host cvmonitor/generator/generate.py --delete-all 
 ```
 
 To delete all devices from server
+
+
+
+## Show networks:
+
+```bash
+pip install netron
+netron
+```
+open the browser and select the network (xml) files.
+
+choose in the menu at the top left to show everything.
+
+In the xml I saw that to get a result you need to attach the node you want to a sink node of type result
+maybe we can edit the xml to get more results.
