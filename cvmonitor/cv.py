@@ -245,7 +245,11 @@ class ComputerVision:
             image_data = base64.decodebytes(data["image"].encode())
             image = np.asarray(imageio.imread(image_data))
             # Suggest segments
-            if not data.get("segments"):
+            have_names = False
+            for s in  data.get("segments",[]) or []:
+                if 'name' in s:
+                    have_names = True
+            if not data.get("segments") or not have_names:
                 # Let's run segment detection.
                 texts, boxes, scores, _ = self.text_spotting.forward(image)
                 segments = []

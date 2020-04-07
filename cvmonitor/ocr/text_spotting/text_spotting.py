@@ -105,8 +105,48 @@ def iou(boxA, boxB):
     # return the intersection over union value
     return iou
 
+def contained(boxA, boxB):
+    """
+    How much of box A is contained in box B
+    boxes are [left, top, right, bottom]
+    """
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
 
-def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, vertical_dist_percent_max=0.2):
+
+    # compute the area of intersection rectangle
+    interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
+
+    boxAArea = (boxA[2]-boxA[0])*(boxA[3]-boxA[1])
+    if interArea == 0:
+        return 0
+    return interArea / boxAArea
+
+
+
+def match_boxes2(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, vertical_dist_percent_max=0.2):
+    """
+    """
+
+    expected_in = np.zeros((len(expected),len(actual)),dtype=np.float32)
+    for i, be in enumerate(expected):
+        for j, ba in enumerate(actual):
+            expected_in[i,j]=contained(be,ba)
+
+
+    actual_in = np.zeros((len(expected),len(actual)),dtype=np.float32)
+    for i, be in enumerate(expected):
+        for j, ba in enumerate(actual):
+            actual_in[i,j]=contained(ba,be)
+
+    expected_in_indices_sorted = np.argsort(expected_in,axis=1,kind='stable')[:, ::-1] # descending order
+    actual_in_indices_sorted = np.argsort(actual_in,axis=1,kind='stable')[:, ::-1] # descending order
+
+    matches_indices = matches_indices_sorted[:, 0]
+
+def match_boxes3(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, vertical_dist_percent_max=0.2):
 
     """
     iou_th and adjacent_boxes_max_iou are used for secondary match:
@@ -192,6 +232,15 @@ def match_boxes(expected, actual, iou_th=0.05, adjacent_boxes_max_iou=0.1, verti
     return matches_indices, matches_scores, matches_indices_secondary, matches_scores_secondary
 
 
+def match_boxes(expected, actual):
+    matches = np.zeros((len(expected),len(actual)),dtype=np.float32)
+    for i, be in enumerate(expected):
+        for j, ba in enumerate(actual):
+            matches[i,j]=iou(be,ba)
+    matches_indices = np.argsort(matches,axis=1,kind='stable')[:,-1]
+    return matches_indices, matches[range(matches.shape[0]), matches_indices]
+
+
 class Model():
 
     def __init__(self, device='CPU', track=False, visualize=False, prob_threshold=0.3, max_seq_len=10, iou_threshold=0.4, model_type='FP32', rgb2bgr=True):
@@ -259,7 +308,7 @@ class Model():
             self.visualizer = Visualizer(['__background__', 'text'], show_boxes=True, show_scores=True)
         log.info('Model ready...')
 
-    def forward(self, frame, expected_boxes=None):
+    def forward2(self, frame, expected_boxes=None):
         """
         returns: texts, boxes, scores, frame
         boxes are [left, top, right, bottom]
@@ -446,6 +495,183 @@ class Model():
                                             np.maximum(boxes[k][3], boxes_secondary[k][3]),  # bottom
                                             ])
 
+
+                if expected_boxes and (name is not None):
+                    # treat decimal digits
+                    text = add_decimal_notation(text, device_name_params)
+
+                    # verify text values
+                    # cast text type
+                    is_valid = is_text_valid(text, device_name_params)
+                    if not is_valid:
+                        log.warning(f'text {text} for {name} is not valid')
+                        print(f'text {text} for {name} is not valid')
+                        text = None
+
+                texts.append(text)
+                log.info(f'detected {text}: {scores[k]} {boxes[k]}')
+            except Exception as e:
+                texts.append(None)
+                name = 'unknown field'
+                if expected_boxes and len(expected_boxes) < k:
+                    name = expected_boxes[k].get('name','unknown field')
+                log.error(f"Error occurred while processing {name}: {e}")
+        inf_end = time.time()
+        inf_time = inf_end - inf_start
+        # performance stats.
+        log.debug('Inference and post-processing time: {:.3f} ms'.format(inf_time * 1000))
+
+
+        if self.tracker is not None or self.visualizer is not None:
+            render_start = time.time()
+            masks = []
+            for box, cls, raw_mask in zip(boxes, classes, raw_masks):
+                raw_cls_mask = raw_mask[cls, ...]
+                mask = segm_postprocess(box, raw_cls_mask, frame.shape[0], frame.shape[1])
+                masks.append(mask)
+
+            if len(boxes):
+                log.debug('Detected boxes:')
+                log.debug('  Class ID | Confidence |     XMIN |     YMIN |     XMAX |     YMAX ')
+                for box, cls, score, mask in zip(boxes, classes, scores, masks):
+                    log.debug('{:>10} | {:>10f} | {:>8.2f} | {:>8.2f} | {:>8.2f} | {:>8.2f} '.format(cls, score, *box))
+
+            # Get instance track IDs.
+            masks_tracks_ids = None
+            if self.tracker is not None:
+                masks_tracks_ids = self.tracker(masks, classes)
+
+            if self.visualizer is not None:
+                # Visualize masks.
+                frame = self.visualizer(frame, boxes, classes, scores, masks, texts, masks_tracks_ids)
+
+                inf_time_message = 'Inference time: {:.3f} ms'.format(inf_time * 1000)
+                cv2.putText(frame, inf_time_message, (15, 15), cv2.FONT_HERSHEY_COMPLEX, 0.5, (200, 10, 10), 1)
+
+            render_end = time.time()
+            render_time = render_end - render_start
+            log.debug('OpenCV rendering time: {:.3f} ms'.format(render_time * 1000))
+
+
+        return texts, boxes, scores, frame
+
+    def forward(self, frame, expected_boxes=None):
+        """
+        returns: texts, boxes, scores, frame
+        boxes are [left, top, right, bottom]
+        """
+        expected_boxes = None
+        [n, c, h, w] = self.shape
+        # Resize the image to keep the same aspect ratio and to fit it to a window of a target size.
+        scale_x = scale_y = min(h / frame.shape[0], w / frame.shape[1])
+        frame = np.max(frame,2)[...,None]
+        frame = np.concatenate((frame,frame,frame),2)
+
+        input_image = cv2.resize(frame, None, fx=scale_x, fy=scale_y)
+
+        # if self.rgb2bgr:
+        #     input_image = input_image[:, :, ::-1] # reverse channels order
+
+        input_image_size = input_image.shape[:2]
+        input_image = np.pad(input_image, ((0, h - input_image_size[0]),
+                                            (0, w - input_image_size[1]),
+                                            (0, 0)),
+                                mode='constant', constant_values=0)
+
+        # Change data layout from HWC to CHW.
+        input_image = input_image.transpose((2, 0, 1))
+        input_image = input_image.reshape((n, c, h, w)).astype(np.float32)
+        input_image_info = np.asarray([[input_image_size[0], input_image_size[1], 1]], dtype=np.float32)
+        del n, c, h, w
+        # Run the net.
+        inf_start = time.time()
+        log.info('running main network')
+        outputs = self.mask_rcnn_exec_net.infer({'im_data': input_image, 'im_info': input_image_info})
+        log.info('main network finished')
+
+        # Parse detection results of the current request
+        boxes = outputs['boxes']
+        scores = outputs['scores']
+        classes = outputs['classes'].astype(np.uint32)
+        raw_masks = outputs['raw_masks']
+        text_features = outputs['text_features']
+
+        # Filter out detections with low confidence.
+        detections_filter = scores > self.prob_threshold
+        scores = scores[detections_filter]
+        classes = classes[detections_filter]
+        boxes = boxes[detections_filter]
+        raw_masks = raw_masks[detections_filter]
+        text_features = text_features[detections_filter]
+
+        boxes[:, 0::2] /= scale_x
+        boxes[:, 1::2] /= scale_y
+        matches = []
+        if expected_boxes:
+            tt = time.time()
+            initial_scores = scores
+            initial_classes = classes
+            initial_boxes = boxes
+            initial_raw_masks = raw_masks
+            initial_text_features = text_features
+            scores = []
+            classes = []
+            boxes = []
+            raw_masks = []
+            text_features = []
+            matches = []
+            names = []
+            best_matches, match_score = match_boxes([e['bbox'] for e in expected_boxes], initial_boxes)
+            for i,(match, score)  in enumerate(zip(best_matches, match_score)):
+                log.info(f'box: {initial_boxes[match]} scored iou of {score}')
+                scores.append(initial_scores[match])
+                classes.append(initial_classes[match])
+                boxes.append(initial_boxes[match])
+                raw_masks.append(initial_raw_masks[match])
+                text_features.append(initial_text_features[match])
+                name = expected_boxes[i]['name']
+                names.append(name)
+                if score > self.iou_threshold:
+                    matches.append(match)
+                else:
+                    matches.append(None)
+
+            classes = np.asarray(classes, dtype=np.uint32)
+            log.info(f' Time Spent on trimming: {(time.time()-tt)*1000} ms')
+        texts = []
+        alphabet = '  0123456789abcdefghijklmnopqrstuvwxyz'
+        for k, feature in enumerate(text_features):
+            try: 
+                if matches and matches[k]==None:
+                    texts.append(None)
+                    break
+                feature = self.text_enc_exec_net.infer({'input': feature})['output']
+                feature = np.reshape(feature, (feature.shape[0], feature.shape[1], -1))
+                feature = np.transpose(feature, (0, 2, 1))
+
+                hidden = np.zeros(self.hidden_shape)
+                prev_symbol_index = np.ones((1,)) * SOS_INDEX
+
+                device_name_params = {}
+                try:  # if expected_boxes:
+                    name = names[k]
+                    device_name_params = self.device_names[name]
+                    max_seq_len = device_name_params['max_len']
+                except:  # else: # name is None
+                    max_seq_len = self.max_seq_len
+
+                text = ''
+                for i in range(max_seq_len):
+                    decoder_output = self.text_dec_exec_net.infer({
+                        'prev_symbol': prev_symbol_index,
+                        'prev_hidden': hidden,
+                        'encoder_outputs': feature})
+                    symbols_distr = decoder_output['output']
+                    prev_symbol_index = int(np.argmax(symbols_distr, axis=1))
+                    if prev_symbol_index == EOS_INDEX:
+                        break
+                    text += alphabet[prev_symbol_index]
+                    hidden = decoder_output['hidden']
 
                 if expected_boxes and (name is not None):
                     # treat decimal digits

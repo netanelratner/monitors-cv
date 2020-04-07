@@ -197,7 +197,7 @@ def test_show_ocr_with_segments(client):
     for i, b in enumerate(bbox_list):
         segments.append(
             {
-                "left": int(b[0]),
+                "left": int(b[0])+0.1,
                 "top": int(b[1]),
                 "right": int(b[2]),
                 "bottom": int(b[3]),
@@ -209,3 +209,79 @@ def test_show_ocr_with_segments(client):
     res = client.post(url_for("cv.show_ocr"), json=data)
     image_res = imageio.imread(res.data)
     assert imageio.imread(image).shape == image_res.shape
+
+
+def test_ocr_with_segments3(client):
+    image = open(os.path.dirname(__file__) + "/data/cvmonitors-cvmonitor-25c1fe5422464c3cb2cd12d24645908c_1.jpeg", "rb").read()
+    bbox_list = np.load(open(os.path.dirname(__file__) + "/data/11_recs.npy", "rb"))
+    image_buffer = base64.encodebytes(image).decode()
+    segments= [
+        {
+        "bottom": 352,
+        "left": 522,
+        "right": 603,
+        "top": 260,
+        "name": "RR"
+        },
+        {
+        "bottom": 263,
+        "left": 516,
+        "right": 614,
+        "top": 177,
+        "name": "SpO2"
+        },
+        {
+        "bottom": 178,
+        "left": 515,
+        "right": 617,
+        "top": 89,
+        "name": "HR"
+        }
+    ]
+    data = {"image": image_buffer, "segments": None}
+    res = client.post(url_for("cv.run_ocr"), json=data)
+    results = res.json
+    print(results)
+    assert res.json
+    for r, e in zip(
+        results,
+        [
+            {"name": 'RR', "value": "15"},
+            {"name": 'SpO2', "value": "95"},
+            {"name": 'HR', "value": "60"},
+        ],
+    ):
+        assert e.items() <= r.items()
+
+
+def test_match_boxes(client):
+    bbox_list = np.load(open(os.path.dirname(__file__) + "/data/11_recs.npy", "rb"))
+    image = open(os.path.dirname(__file__) + "/data/11.jpg", "rb").read()
+    image_buffer = base64.encodebytes(image).decode()
+    data = {
+        "image": image_buffer,
+    }
+    res = client.post(url_for("cv.run_ocr"), json=data)
+    segments = res.json
+
+    devices_names = [
+        'HR','RR','SpO2','IBP-Systole','IBP-Diastole'
+    ]
+    expected = [
+        {"name": devices_names[0], "value": "52"},
+        {"name": devices_names[1], "value": "15"},
+        {"name": devices_names[2], "value": "93"},
+        {"name": devices_names[3], "value": "115"},
+        {"name": devices_names[4], "value": "45"},
+    ]
+
+    data = {"image": image_buffer, "segments": segments}
+
+
+    box_res = [[s["left"], s["top"], s["right"], s["bottom"]] for s in segments]
+    box_expected = bbox_list
+    best_matches, _, _, _ = text_spotting.match_boxes2(box_res, box_expected)
+    for i in range(len(best_matches)):
+        assert text_spotting.iou(box_res[i], box_expected[best_matches[i]]) > 0.75
+        assert expected[best_matches[i]]["value"] in segments[i]["value"]
+
