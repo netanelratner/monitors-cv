@@ -89,7 +89,7 @@ services:
     volumes:
       - "logs:/opt/app/logs"
   backend:
-    image: yehiyam/monitor-backend:v0.0.20
+    image: yehiyam/monitor-backend:v0.0.25
     restart: always
     ports:
       - "80:3000"
