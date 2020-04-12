@@ -7,8 +7,9 @@ import ujson as json
 import pytest
 from pylab import imshow, show
 from cvmonitor.ocr.utils import get_fields_info, is_text_valid, add_decimal_notation
-from ..ocr.utils import get_ocr_expected_boxes
+from ..ocr.utils import get_ocr_expected_boxes, draw_segments
 from .. import ocr
+from cvmonitor.ocr.text_spotting import text_spotting
 from ..qr import find_qrcode
 from ..image_align import align_by_qrcode
 from .. import qr, image_align
@@ -109,6 +110,7 @@ def test_orient_by_qr():
 
 
 def test_ocr_by_segments():
+    
     image = imageio.imread(
         os.path.dirname(__file__) + "/data/cvmonitors-cvmonitor-9a6d4db29fa04bfa.jpg"
     )
@@ -119,13 +121,60 @@ def test_ocr_by_segments():
         )
     )
     devices = get_fields_info()
-    text_spotting = ocr.text_spotting.text_spotting.Model()
+    spotter = text_spotting.Model()
     expected_boxes = get_ocr_expected_boxes(segments["segments"], devices, 0.5, 0.6)
-    texts, boxes, scores, _ = text_spotting.forward(
+    texts, boxes, scores, _, letters_scores = spotter.forward(
+        image, expected_boxes=None
+    )
+    print(letters_scores)
+
+
+def test_ocr_global():
+    
+    image = imageio.imread(
+        os.path.dirname(__file__) + "/data/2020_04_10_09/000002091.jpg"
+    )
+    devices = get_fields_info()
+    spotter = text_spotting.Model()
+    texts, boxes, scores, _, letters_scores = spotter.forward(
+        image, expected_boxes=None
+    )
+    segments = []
+    for box,text in zip(boxes,texts):
+        segments.append({
+            "value": text,
+            "left": float(box[0]),
+            "top": float(box[1]),
+            "right": float(box[2]),
+            "bottom": float(box[3]),
+        })
+    image_res = draw_segments(image, segments)
+    imshow(image_res);show()
+    print(letters_scores)
+
+def test_ocr_global2():
+    
+    image = imageio.imread(
+        os.path.dirname(__file__) + "/data/2020_04_10_09/000002091.jpg"
+    )
+    #[left, top, width, height]
+    marks ={
+    "HR":[911,22,216,186],
+    "SpO2":[913,188,225,213],
+    "RR":[900,341,200,248],
+    "NIBP-Systole":[149,530,107,73],
+    "NIBP-Diastole":[247,542,78,66],
+    "IBP-Diastole":[343,549,93,71],
+    }
+    segments = [{'name':k,"top":v[1],"left":v[0],'bottom':v[1]+v[3],'right':v[0]+v[2]} for k,v in marks.items()]
+    image_res = draw_segments(image, segments)
+    devices = get_fields_info()
+    expected_boxes = get_ocr_expected_boxes(segments, devices, 0.5, 0.6)
+    spotter = text_spotting.Model()
+    texts, boxes, scores, _, letters_scores = spotter.forward(
         image, expected_boxes=expected_boxes
     )
-
-
+    print(letters_scores)
 def test_is_text_valid_str():
     devices = get_fields_info()
     assert is_text_valid("simv+", devices["Medication Name"])
