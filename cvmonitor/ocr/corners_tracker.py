@@ -12,7 +12,8 @@ class CornersTracker(object):
     PATCH_EXT_RADIUS = (30, 30)  # (cols, rows) - extension radius of the polygon for feature extraction
     LIGHTING_TH = 25  # Maximal difference of the image mean, in order to continue tracking. Otherwise - reinitialize
 
-    def valid_keypoints (keypoints, descriptors, col1, row1, col2, row2):
+
+    def valid_keypoints (self, keypoints, descriptors, col1, row1, col2, row2):
         validMask = []
         for i in range(len(keypoints)):
             validity = keypoints[i].pt[0] >= col1 and keypoints[i].pt[0] <= col2 and keypoints[i].pt[1] >= row1 and keypoints[i].pt[1] <= row2
@@ -22,35 +23,35 @@ class CornersTracker(object):
         return keypoints, descriptors
 
 
-    def track_corners(img, timeStamp, points):
+    def track_corners(self, img, timeStamp, points):
         points_prev = points
 
         img_gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         img_mean = img_gray.mean()
 
-        if 'orb' not in track_corners.__dict__:   # initialize tracker
-            track_corners.timeStampLast = timeStamp
+        if 'orb' not in self.__dict__:   # initialize tracker
+            self.timeStampLast = timeStamp
 
             # Initialize handles
-            track_corners.orb = cv2.ORB_create(CornersTracker.MAX_FEATURES)
-            track_corners.matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
+            self.orb = cv2.ORB_create(CornersTracker.MAX_FEATURES)
+            self.matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
 
             col1, row1 = (np.min(points, 0)).astype(int) - CornersTracker.PATCH_EXT_RADIUS
             col2, row2 = (np.max(points, 0)).astype(int) + CornersTracker.PATCH_EXT_RADIUS
 
-            keypoints, descriptors = track_corners.orb.detectAndCompute(img_gray, None)
-            keypoints, descriptors = valid_keypoints(keypoints, descriptors, col1, row1, col2, row2)
-            track_corners.keypoints_old = keypoints
-            track_corners.descriptors_old = descriptors
-            track_corners.old_points = points
+            keypoints, descriptors = self.orb.detectAndCompute(img_gray, None)
+            keypoints, descriptors = self.valid_keypoints(keypoints, descriptors, col1, row1, col2, row2)
+            self.keypoints_old = keypoints
+            self.descriptors_old = descriptors
+            self.old_points = points
 
         else:  # Tracking
-            col1, row1 = (np.min(points, 0)).astype(int) - PATCH_EXT_RADIUS
-            col2, row2 = (np.max(points, 0)).astype(int) + PATCH_EXT_RADIUS
+            col1, row1 = (np.min(points, 0)).astype(int) - CornersTracker.PATCH_EXT_RADIUS
+            col2, row2 = (np.max(points, 0)).astype(int) + CornersTracker.PATCH_EXT_RADIUS
 
-            keypoints, descriptors = track_corners.orb.detectAndCompute(img_gray, None)
-            keypoints, descriptors = valid_keypoints(keypoints, descriptors, col1, row1, col2, row2)
-            matches = track_corners.matcher.match(track_corners.descriptors_old, descriptors, None)
+            keypoints, descriptors = self.orb.detectAndCompute(img_gray, None)
+            keypoints, descriptors = self.valid_keypoints(keypoints, descriptors, col1, row1, col2, row2)
+            matches = self.matcher.match(self.descriptors_old, descriptors, None)
 
             # Sort matches by score
             matches.sort(key=lambda x: x.distance, reverse=False)
@@ -64,33 +65,33 @@ class CornersTracker(object):
             keypoints_best = np.zeros((len(matches), 2), dtype=np.float32)
 
             for i, match in enumerate(matches):
-                keypoints_old_best[i, :] = track_corners.keypoints_old[match.queryIdx].pt
+                keypoints_old_best[i, :] = self.keypoints_old[match.queryIdx].pt
                 keypoints_best[i, :] = keypoints[match.trainIdx].pt
 
             # Find homography \ affine and apply it on the corners
             if CornersTracker.TRANS_TYPE == 'affine':
                 h, mask = cv2.estimateAffinePartial2D(keypoints_old_best, keypoints_best)
-                points = np.squeeze(cv2.transform(track_corners.old_points.reshape(-1, 1, 2), h))
+                points = np.squeeze(cv2.transform(self.old_points.reshape(-1, 1, 2), h))
             elif CornersTracker.TRANS_TYPE == 'homography':
                 h, mask = cv2.findHomography(keypoints_old_best, keypoints_best, cv2.RANSAC)
-                points = np.squeeze(cv2.perspectiveTransform(track_corners.old_points.reshape(-1, 1, 2), h))
+                points = np.squeeze(cv2.perspectiveTransform(self.old_points.reshape(-1, 1, 2), h))
 
-            img_mean_diff = img_mean - track_corners.prev_img_mean
+            img_mean_diff = img_mean - self.prev_img_mean
             # initialize features every set period, to reduce chance of failure
-            if (timeStamp - track_corners.timeStampLast) >= TRACKING_PERIOD or abs(img_mean_diff) >= LIGHTING_TH:
-                if abs(img_mean_diff) >= LIGHTING_TH:  # In that case, don't trust the tracking
+            if (timeStamp - self.timeStampLast) >= CornersTracker.TRACKING_PERIOD or abs(img_mean_diff) >= CornersTracker.LIGHTING_TH:
+                if abs(img_mean_diff) >= CornersTracker.LIGHTING_TH:  # In that case, don't trust the tracking
                     points = points_prev
 
-                track_corners.timeStampLast = timeStamp
+                self.timeStampLast = timeStamp
 
-                col1, row1 = (np.min(points, 0)).astype(int) - PATCH_EXT_RADIUS
-                col2, row2 = (np.max(points, 0)).astype(int) + PATCH_EXT_RADIUS
+                col1, row1 = (np.min(points, 0)).astype(int) - CornersTracker.PATCH_EXT_RADIUS
+                col2, row2 = (np.max(points, 0)).astype(int) + CornersTracker.PATCH_EXT_RADIUS
 
-                keypoints, descriptors = track_corners.orb.detectAndCompute(img_gray, None)
-                keypoints, descriptors = valid_keypoints(keypoints, descriptors, col1, row1, col2, row2)
-                track_corners.keypoints_old = keypoints
-                track_corners.descriptors_old = descriptors
-                track_corners.old_points = points
+                keypoints, descriptors = self.orb.detectAndCompute(img_gray, None)
+                keypoints, descriptors = self.valid_keypoints(keypoints, descriptors, col1, row1, col2, row2)
+                self.keypoints_old = keypoints
+                self.descriptors_old = descriptors
+                self.old_points = points
 
-        track_corners.prev_img_mean = img_mean
+        self.prev_img_mean = img_mean
         return points
