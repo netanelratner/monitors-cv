@@ -11,6 +11,7 @@ def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reproc
     expected_boxes = []
     for index, segment in enumerate(segments):
         try:
+            needs_ocr = True
             expected = {
                 "bbox": [
                     segment["left"],
@@ -18,10 +19,9 @@ def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reproc
                     segment["right"],
                     segment["bottom"],
                 ],
-                "name": segment["name"],
+                "name": segment.get("name"),
                 "index": index,
             }
-            needs_ocr = True
             if "value" in segment and "name" in segment:
                 value = segment["value"]
                 name = segment["name"]
@@ -37,6 +37,7 @@ def get_ocr_expected_boxes(segments, devices, default_score, min_score_to_reproc
                 expected_boxes.append(expected)
         except Exception:
             logging.exception(f"error adding box for {segment}")
+            
     return expected_boxes
 
 
@@ -144,7 +145,7 @@ def get_fields_info(device_types=['respirator','ivac','monitor']):
     'IBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': int},  # right blood pressure
     'NIBP-Systole': {'max_len': 3, 'min': 80, 'max': 180, 'dtype': int},  # left blood pressure
     'NIBP-Diastole': {'max_len': 3, 'min': 40, 'max': 100, 'dtype': int},  # right blood pressure
-    'Temp': {'max_len': 3, 'min': 35.0, 'max': 38.0, 'dtype': float, 'num_digits_after_point': 1},
+    'Temp': {'min_len': 2, 'max_len': 3, 'min': 35.0, 'max': 38.0, 'dtype': float, 'num_digits_after_point': 1},
     'etCO2': {'max_len': 2, 'min': 24, 'max': 44, 'dtype': int},
     }
     # for annotations only, currently not found in android app
@@ -248,7 +249,7 @@ def draw_segments(image, segments):
     color = np.minimum(np.median(image, axis=[0, 1])+100,[255,255,255])
     for s in segments:
         cv2.rectangle(image,(int(s['left']),int(s['top'])),(int(s['right']),int(s['bottom'])),color, 1)
-        cv2.putText(img=image, text=str(f"{s.get('name','?')}: {s.get('value','?')}"), org=(s['left'], s['bottom'] + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
+        cv2.putText(img=image, text=str(f"{s.get('name','?')}: {s.get('value','?')}"), org=(int(s['left']), int(s['bottom']) + 10), fontFace=cv2.FONT_HERSHEY_PLAIN, 
             fontScale=1, color=color, thickness=1)
     return image
 

@@ -197,8 +197,8 @@ def test_show_ocr_with_segments(client):
     for i, b in enumerate(bbox_list):
         segments.append(
             {
-                "left": int(b[0]),
-                "top": int(b[1]),
+                "left": float(b[0]),
+                "top": float(b[1]) +0.1,
                 "right": int(b[2]),
                 "bottom": int(b[3]),
                 "name": str(devices_names[i]),
@@ -209,3 +209,9 @@ def test_show_ocr_with_segments(client):
     res = client.post(url_for("cv.show_ocr"), json=data)
     image_res = imageio.imread(res.data)
     assert imageio.imread(image).shape == image_res.shape
+
+
+def test_get_measurements(client):
+    assert 'HR' in client.get(url_for("cv.get_measurements",device='monitor')).json
+    assert not client.get(url_for("cv.get_measurements", device='unknown')).json
+    assert 'Rate' in client.get(url_for("cv.get_measurements", device='respirator')).json

@@ -245,7 +245,11 @@ class ComputerVision:
             image_data = base64.decodebytes(data["image"].encode())
             image = np.asarray(imageio.imread(image_data))
             # Suggest segments
-            if not data.get("segments"):
+            have_names = False
+            for s in  data.get("segments",[]) or []:
+                if 'name' in s:
+                    have_names = True
+            if not data.get("segments") or not have_names:
                 # Let's run segment detection.
                 texts, boxes, scores, _ = self.text_spotting.forward(image)
                 segments = []
@@ -416,3 +420,8 @@ class ComputerVision:
             generate_pdf(pdf_buffer, title, width, height)
             pdf_buffer.seek(0)
             return pdf_buffer.read(), 200, headers
+
+
+        @self.blueprint.route("/measurements/<device>", methods=["GET"])
+        def get_measurements(device):
+            return json.dumps([x for x in get_fields_info([device]).keys()]), 200, {'content-type': 'application/json'}
