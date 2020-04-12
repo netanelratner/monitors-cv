@@ -414,8 +414,6 @@ def add_devices(url: str, active_devices: List[Device]):
             "segments": device.segments
         }
         res=requests.post(url + f'/monitor/{device.qrtext}', json=device_json)
-        print(res.text)
-
 
 
 

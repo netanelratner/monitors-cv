@@ -110,13 +110,14 @@ def test_ocr_with_segments(client):
         assert e.items() <= r.items()
 
 
-def test_ocr_no_segments(client):
+def test_ocr_no_segments_suggest(client):
     bbox_list = np.load(open(os.path.dirname(__file__) + "/data/11_recs.npy", "rb"))
     image = open(os.path.dirname(__file__) + "/data/11.jpg", "rb").read()
     image_buffer = base64.encodebytes(image).decode()
     data = {
         "image": image_buffer,
     }
+    os.environ['CVMONITOR_SUGGEST_SEGMENT']='TRUE'
     res = client.post(url_for("cv.run_ocr"), json=data)
     segments = res.json
 
@@ -140,7 +141,20 @@ def test_ocr_no_segments(client):
     for i in range(len(best_matches)):
         assert text_spotting.iou(box_res[i], box_expected[best_matches[i]]) > 0.75
         assert expected[best_matches[i]]["value"] in segments[i]["value"]
+    os.environ['CVMONITOR_SUGGEST_SEGMENT']='FALSE'
 
+
+def test_ocr_no_segments_no_suggest(client):
+    bbox_list = np.load(open(os.path.dirname(__file__) + "/data/11_recs.npy", "rb"))
+    image = open(os.path.dirname(__file__) + "/data/11.jpg", "rb").read()
+    image_buffer = base64.encodebytes(image).decode()
+    data = {
+        "image": image_buffer,
+    }
+    os.environ['CVMONITOR_SUGGEST_SEGMENT']='FALSE'
+    res = client.post(url_for("cv.run_ocr"), json=data)
+    segments = res.json
+    assert not segments
 
 def test_bad_bb(client):
     image = open(os.path.dirname(__file__) + "/data/11.jpg", "rb").read()

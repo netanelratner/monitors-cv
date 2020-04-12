@@ -52,13 +52,14 @@ services:
     expose:
       - 3000
   cvbackend:
-    image: brainoom/cvmonitor:v0.3.18
+    image: brainoom/cvmonitor:v0.3.19
     restart: always
     ports:
       - "8088:8088"
     expose:
       - 8088
     environment:
+      CVMONITOR_SUGGEST_SEGMENT: ${CVMONITOR_SUGGEST_SEGMENT:-FALSE}
       CVMONITOR_SPOTTING_PROB_THRESHOLD: ${CVMONITOR_SPOTTING_PROB_THRESHOLD:-0.3}
       CVMONITOR_SEGMENT_THRESHOLD: ${CVMONITOR_SEGMENT_THRESHOLD:-0.95}
       CVMONITOR_DEVICE_OCR_DEFAULT_SCORE: ${CVMONITOR_DEVICE_OCR_DEFAULT_SCORE:-0.5}

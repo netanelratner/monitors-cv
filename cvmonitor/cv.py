@@ -232,7 +232,9 @@ class ComputerVision:
             device_ocr_score_threshold = float(
                 os.environ.get("CVMONITOR_DEVICE_OCR_SCORE_THRESHOLD", "0.8")
             )
-
+            suggest_segments = float(
+                os.environ.get("CVMONITOR_SUGGEST_SEGMENT", "FALSE") == "TRUE"
+            )
             spotting_ocr = os.environ.get("CVMONITOR_OCR_SPOTTING", "TRUE") == "TRUE"
             threshold = float(os.environ.get("CVMONITOR_SERVER_OCR_THRESHOLD", "0.8"))
             if not self.model_ocr:
@@ -249,7 +251,7 @@ class ComputerVision:
             for s in  data.get("segments",[]) or []:
                 if 'name' in s:
                     have_names = True
-            if not data.get("segments") or not have_names:
+            if suggest_segments and (not data.get("segments") or not have_names):
                 # Let's run segment detection.
                 texts, boxes, scores, _ = self.text_spotting.forward(image)
                 segments = []
@@ -268,7 +270,7 @@ class ComputerVision:
                         )
                 logging.debug(f"Detections (new): {segments}")
                 return json.dumps(segments), 200, {"content-type": "application/json"}
-            segments = copy.deepcopy(data["segments"])
+            segments = copy.deepcopy(data.get("segments",[]))
             if len(segments) == 0:
                 logging.error("No segments")
                 return json.dumps([]), 200, {"content-type": "application/json"}
